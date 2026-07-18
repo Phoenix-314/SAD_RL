@@ -13,6 +13,7 @@ Current Task:
 - Use profiling, compilation, or vectorization to enhance the speed of the environment.
 
 Future Plans:
+
 2) Implement RL agent to play my environment with extremely high consistency.
 Current plan is to use MCTS with DPW and a transposition table. I expect MCTS to be an effective choice
 since the value function of this game has many sharp edges due to breakpoints. DPW is needed due to the relatively
