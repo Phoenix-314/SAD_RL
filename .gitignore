@@ -1,0 +1,6 @@
+*.pyc
+.vscode/*
+dice.jar
+saveStates/*
+test.py
+notes.py
