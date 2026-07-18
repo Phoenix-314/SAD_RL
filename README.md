@@ -37,14 +37,3 @@ Resources
 “Continuous upper confidence trees,” in International Conference on
 Learning and Intelligent Optimization. Springer, 2011, pp. 433–445
 - https://www.researchgate.net/publication/235985858_A_Survey_of_Monte_Carlo_Tree_Search_Methods
-
-
-
-
-
-
-
-
-Resources:
-
-https://ieee-cog.org/2020/papers2019/paper_25
