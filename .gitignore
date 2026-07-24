@@ -1,6 +1,20 @@
-*.pyc
-.vscode/*
-dice.jar
-saveStates/*
-test.py
-notes.py
+# Visual Studio
+/.vscode/
+/.vs
+**.slnx
+**.vcxproj
+**.vcxproj.user
+**.vcxproj.filters
+
+# Conan
+/dependencies
+
+# Build output
+/build
+
+# Python
+/__pycache__/
+SADenv/__pycache__/
+
+# Progam files
+/saveStates

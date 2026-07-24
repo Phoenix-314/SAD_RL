@@ -5,10 +5,10 @@ import time
 np.random.seed(2)
 
 from SADenv.reversedIDs import *
-from render import *
+from SADenv.render import *
 from SADenv.transitions import *
 from SADenv.util import *
-from randomActor import randomAction
+from SADenv.randomActor import randomAction
 
 renderer = None
 
