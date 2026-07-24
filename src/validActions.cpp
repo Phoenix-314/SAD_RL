@@ -334,7 +334,7 @@ bool isValidSpellAction(State& state, bool targIsEnemy, std::pair<int, int> spel
         }
         return state.players[targetNum]->usedDie;
     } else if (spellReq == SpellTargetReq::DAMAGE_N_SHIELD_3 || spellReq == SpellTargetReq::DAMAGE_2 || spellReq == SpellTargetReq::ONE_OF_ALL || spellReq == SpellTargetReq::AN_X) {
-        if (findTacticCosts(state, spellReq).size() == 0) {  // TODO: add caching all over the place
+        if (findTacticCosts(state, spellReq).size() == 0) {
             return false;
         }
 
@@ -360,8 +360,19 @@ std::vector<int> findMaxHP(State& state, bool heavy, bool isEnemy) {
     std::vector<int> maxIndices;
 
     if (isEnemy) {
+        bool allAreBackrow = true;
+        for (const auto& enemy : state.enemies) {
+            if (!enemy->backrow) {
+                allAreBackrow = false;
+                break;
+            }
+        }
+
         for (int i = 0; i < state.enemies.size(); i++) {
             Ent* enemy = state.enemies[i];
+            if (enemy->backrow && !allAreBackrow) {
+                continue;
+            }
             if ((enemy->hp >= maxHP && heavy) || (enemy->hp <= maxHP && !heavy)) {
                 if (enemy->hp != maxHP) {
                     maxIndices.clear();
@@ -464,7 +475,7 @@ std::vector<int> validActions(State& state) { // TODO - profile to see if this i
     std::vector<int> validActions;
     for (int i = 0; i < ACTION_MAP.size(); i++) {
         // if (i == 100) {
-        //     std::cout << "Debug: Found action 100 in validActions. This is likely a placeholder or test action." << std::endl; // TODO Remove
+        //     continue; // TODO Remove
         // }
         if (isValidAction(state, i)) {
             validActions.push_back(i);
@@ -479,4 +490,343 @@ std::vector<int> validActions(State& state) { // TODO - profile to see if this i
     return validActions;
 }
 
+
+std::vector<int> validActionsFast(State& state) {
+    std::vector<bool> validActions(183, false); // Actions will be updated to true if valid, then converted to a vector of ints at the end
+
+    /*
+     * Dice actions. Evaluates constant facts about each of the 5 heros, then iterates through them and sets validActions to true as needed
+    */
+    if (state.stateType == StateType::WON || state.stateType == StateType::LOST) {
+        throw std::runtime_error("validActionsFast called on a terminal state");
+        return std::vector<int>{};
+    }
+    if (state.stateType == StateType::EMPTY_FIGHT || state.stateType == StateType::EMPTY_TURN || state.stateType == StateType::EMPTY_REROLL) {
+        return std::vector<int>{182};
+    }
+    if (state.rerolls <= 0) { // can only use dice/cast spells if rerolling is done
+    std::pair<int, Ent*> possessedHero = findMadnessedHero(state);
+
+
+    std::array<bool, 5> canUseDice{false, false, false, false, false};
+    std::array<bool, 5> hasRanged{false, false, false, false, false};
+    std::array<int, 5> staticPipsArray{0, 0, 0, 0, 0};
+    for (int i = 0; i < 5; i++) {
+        Ent& hero = *state.players[i];
+
+        if (hero.dead || hero.usedDie || hero.exerted) {
+            continue;
+        }
+        if (hero.petrified[hero.currentSideNum] && !hero.currentSide.keywords[KeywordID::STASIS]) { // Stasis overrides petrify
+            continue;
+        }
+
+        bool autoUsableSide = std::find(SIDES_AUTO_USABLE.begin(), SIDES_AUTO_USABLE.end(), hero.currentSide.type) != SIDES_AUTO_USABLE.end();
+        if (!autoUsableSide) {
+            int staticPips = findStaticPips(state, state.players[i]);
+            staticPipsArray[i] = staticPips;
+            if (staticPips <= 0) {
+                continue;
+            }
+        }
+
+        hasRanged[i] = util::hasCopycattedKeyword(state, hero.currentSide, KeywordID::RANGED);
+        canUseDice[i] = true;
+    }
+
+    bool allAreBackrow = true;
+    for (const auto& enemy : state.enemies) {
+        if (!enemy->backrow) {
+            allAreBackrow = false;
+            break;
+        }
+    }
+
+    // Scans through the first 80 actions, which are all dice actions, and sets the validActions to true as needed. Avoids repeated calculations
+    for (int i=0;i<5;i++) {
+        Ent& hero = *state.players[i];
+
+        if (!canUseDice[i]) {
+            continue;
+        }
+
+        bool possessed = (i == possessedHero.first);
+        SideType sideType = hero.currentSide.type;
+
+        bool untargeted = (sideType == SideType::MANA || sideType == SideType::DODGE || sideType == SideType::SELF_DAMAGE || sideType == SideType::DAMAGE_ALL || sideType == SideType::DAMAGE_EVERYONE || sideType == SideType::SHIELD_ALL || sideType == SideType::HEAL_ALL);
+        bool isAllyType = (sideType == SideType::SHIELD || sideType == SideType::HEAL || sideType == SideType::HEALSHIELD || sideType == SideType::REDIRECTINCOMING || sideType == SideType::ENCHANT || sideType == SideType::UNDYING);
+        bool isEnemyType = (sideType == SideType::DAMAGE);
+        if (untargeted) {
+            // Untargeted
+            validActions[i*16 + 0] = true;
+        } else if ((isAllyType && !possessed) || (isEnemyType && possessed)) {
+            // Target ally            
+            if (hero.currentSide.keywords[KeywordID::HEAVY]) { // Possession, shortcircuits
+                for (const auto& target : findMaxHP(state, true, false)) {
+                    validActions[i*16 + target + 1] = true;
+                }
+                continue;
+            }
+            for (int j=0;j<5;j++) {
+                Ent& ally = *state.players[j];
+                if (ally.dead) {
+                    continue;
+                }
+
+                validActions[i*16 + j + 1] = true;
+            }
+
+        } else if ((isAllyType && possessed) || (isEnemyType && !possessed)) {
+            // Target enemy
+            if (hero.currentSide.keywords[KeywordID::HEAVY]) { // Possession, shortcircuits
+                for (const auto& target : findMaxHP(state, true, true)) {
+                    validActions[i*16 + target + 6] = true;
+                }
+                continue;
+            }
+            for (int j=0;j<state.enemies.size();j++) {
+                Ent& enemy = *state.enemies[j];
+                if (enemy.backrow && !hasRanged[i] && !allAreBackrow) {
+                    continue;
+                }
+
+                validActions[i*16 + j + 6] = true;
+            }
+        } else if (sideType == SideType::KILL) {
+            if (possessed) {
+                for (int j=0;j<5;j++) {
+                    Ent& ally = *state.players[j];
+                    if (ally.hp <= staticPipsArray[i] && (!ally.dead)) {
+                        validActions[i*16 + j + 1] = true;
+                    }
+                }
+            } else {
+                for (int j=0;j<state.enemies.size();j++) {
+                    Ent& enemy = *state.enemies[j];
+                    if (enemy.hp <= staticPipsArray[i]) {
+                        validActions[i*16 + j + 6] = true;
+                    }
+                }
+            }
+        } else if (sideType == SideType::STUN) {
+            if (possessed) {
+                for (int j=0;j<5;j++) {
+                    Ent& ally = *state.players[j];
+                    if (ally.hp <= hero.hp && (!ally.dead)) {
+                        validActions[i*16 + j + 1] = true;
+                    }
+                }
+            } else {
+                for (int j=0;j<state.enemies.size();j++) {
+                    Ent& enemy = *state.enemies[j];
+                    if (enemy.hp <= hero.hp && (!enemy.backrow || hasRanged[i] || allAreBackrow)) {
+                        validActions[i*16 + j + 6] = true;
+                    }
+                }
+            }
+        } else if (sideType == SideType::RECHARGE) {
+            if (possessed) {
+                continue; // Possessed cannot use RECHARGE
+            }
+            for (int j=0;j<5;j++) {
+                Ent& ally = *state.players[j];
+                if (ally.usedDie && ally.currentSide.type != SideType::RECHARGE && !ally.dead) {
+                    validActions[i*16 + j + 1] = true;
+                }
+            }
+        } else if (sideType == SideType::RESURRECT) {
+            bool heroIsDead = false;
+            for (int j=0;j<5;j++) {
+                Ent& ally = *state.players[j];
+                if (ally.dead) {
+                    heroIsDead = true;
+                    break;
+                }
+            }
+            if (heroIsDead) {
+                validActions[i*16 + 0] = true;
+            }
+        } else if (sideType == SideType::REROLL || sideType == SideType::BLANK) {
+            // cannot use these sides
+        } else {
+            // heros should not have these sides (SUMMON, ERROR, DAMAGE_FLANKING)
+            throw std::runtime_error("Unhandled case in validActionsFast for sourceNum " + std::to_string(i));
+        }
+
+
+    }
+        
+    /*
+     * Spell actions.
+    */
+
+    // Burst
+    if (state.mana >= 2) {
+        for (int i=0;i<5;i++) {
+            validActions[80 + i] = !state.players[i]->dead;
+        }
+        for (int i=0;i<state.enemies.size();i++) {
+            Ent& enemy = *state.enemies[i];
+            if (enemy.backrow && !allAreBackrow) {
+                continue;
+            }
+            validActions[80 + 5 + i] = true;
+        }
+    }
+    // Player spells - Handling orange and yellow seperately since they do not have many spells
+    // Imbue
+    if (state.players[0]->sourceID == SPELLBLADE && state.spellData[1] >= 0 && !state.players[0]->dead && state.mana >= 1) {
+        for (int i=0;i<5;i++) {
+            Ent& ally = *state.players[i];
+            if (!ally.dead) {
+                validActions[95 + i] = true;
+            }
+        }
+    }
+    if (state.players[1]->sourceID == CAPTAIN && !state.players[1]->dead) {
+        if (findTacticCosts(state, SpellTargetReq::DAMAGE_N_SHIELD_3).size() > 0) {
+            validActions[100] = true; // Tactics can be cast without mana, but still need to meet targeting requirements
+        }
+    }
+    for (int i=3;i<6;i++) { // All remaining spells for gray, red, and blue
+        Ent& hero = *state.players[i-1];
+        int spellID = hero.spellID;
+        if (hero.dead || state.spellData[i] < 0 || spellID == -1) {
+            continue;
+        }
+
+        SpellTargetReq spellReq = SpellReqsMap[spellID];
+        int spellCost = SpellCostMap[spellID] + std::max(0, state.spellData[i]); // positive values for spellColor indicate DEPLETE costs
+        bool canCastCost = (state.mana >= spellCost);
+        if (!canCastCost && std::find(ALL_TACTICS.begin(), ALL_TACTICS.end(), spellReq) == ALL_TACTICS.end()) { // Tactics can be cast without mana, but still need to meet targeting requirements
+            continue;
+        }
+
+        int index = 101 + (i-3)*16; // 101 is the first spell action, then each hero has 16 actions
+
+        if (spellReq == SpellTargetReq::UNTARGETED) {
+            validActions[index + 0] = true;
+        }
+        if (spellReq == SpellTargetReq::ENEMY || spellReq == SpellTargetReq::EITHER) {
+            for (int j=0;j<state.enemies.size();j++) {
+                Ent& enemy = *state.enemies[j];
+                if (enemy.backrow && !allAreBackrow) {
+                    continue;
+                }
+                validActions[index + j + 6] = true;
+            }
+        }
+        if (spellReq == SpellTargetReq::ALLY || spellReq == SpellTargetReq::EITHER) {
+            for (int j=0;j<5;j++) {
+                Ent& ally = *state.players[j];
+                if (!ally.dead) {
+                    validActions[index + j + 1] = true;
+                }
+            }
+        }
+        if (spellReq == SpellTargetReq::RESURRECT) {
+            bool heroIsDead = false;
+            for (int j=0;j<5;j++) {
+                Ent& ally = *state.players[j];
+                if (ally.dead) {
+                    heroIsDead = true;
+                    break;
+                }
+            }
+            if (heroIsDead) {
+                validActions[index + 0] = true;
+            }
+        }
+        if (spellReq == SpellTargetReq::HP1 || spellReq == SpellTargetReq::HP2 || spellReq == SpellTargetReq::HP3) {
+            int amount = 1;
+            if (spellReq == SpellTargetReq::HP2) {
+                amount = 2;
+            } else if (spellReq == SpellTargetReq::HP3) {
+                amount = 3;
+            }
+            for (int j=0;j<state.enemies.size();j++) {
+                Ent& enemy = *state.enemies[j];
+                if (enemy.hp == amount && (!enemy.backrow || allAreBackrow)) {
+                    validActions[index + j + 6] = true;
+                }
+            }
+        }
+        if (spellReq == SpellTargetReq::RECHARGE) {
+            for (int j=0;j<5;j++) {
+                Ent& ally = *state.players[j];
+                if (ally.usedDie && !ally.dead) {
+                    validActions[index + j + 1] = true;
+                }
+            }
+        }
+        if (spellReq == SpellTargetReq::DAMAGE_2) {
+            if (findTacticCosts(state, SpellTargetReq::DAMAGE_2).size() > 0) {
+                for (int j=0;j<5;j++) {
+                    Ent& ally = *state.players[j];
+                    if (!ally.dead) {
+                        validActions[index + j + 1] = true;
+                    }
+                }
+            }
+        }
+        if (spellReq == SpellTargetReq::ONE_OF_ALL) {
+            if (findTacticCosts(state, SpellTargetReq::ONE_OF_ALL).size() > 0) {
+                for (int j=0;j<state.enemies.size();j++) {
+                    Ent& enemy = *state.enemies[j];
+                    if (!enemy.backrow || allAreBackrow) {
+                        validActions[index + j + 6] = true;
+                    }
+                }
+            }
+        }
+        if (spellReq == SpellTargetReq::AN_X) {
+            if (findTacticCosts(state, SpellTargetReq::AN_X).size() > 0) {
+                for (int j=0;j<5;j++) {
+                    Ent& ally = *state.players[j];
+                    if (!ally.dead) {
+                        validActions[index + j + 1] = true;
+                    }
+                }
+            }
+        }
+    }
+
+    // Ent turn
+    if (isValidEndTurn(state)) {
+        validActions[181] = true; // END_TURN_ACTION
+    }
+
+    } // End of (state.rerolls == 0) check
+    if (state.rerolls > 0) {
+        std::array<bool, 5> allowReroll{false, false, false, false, false};
+        for (int i = 0; i < 5; i++) {
+            if (state.players[i]->dead || state.players[i]->currentSide.keywords[KeywordID::STICKY]) {
+                allowReroll[i] = false;
+            } else {
+                allowReroll[i] = true;
+            }
+        }
+        int index = 149;
+        for (int i=0;i<32;i++) {
+            if (i & 1 && !allowReroll[0]) continue;
+            if (i & 2 && !allowReroll[1]) continue;
+            if (i & 4 && !allowReroll[2]) continue;
+            if (i & 8 && !allowReroll[3]) continue;
+            if (i & 16 && !allowReroll[4]) continue;
+
+            validActions[index + i] = true;
+        }   
+    }
+
+
+    std::vector<int> ret;
+    for (int i=0;i<validActions.size();i++) {
+        if (validActions[i]) {
+            ret.push_back(i);
+        }
+    }
+
+    return ret;
 }
+
+} // namespace validActions

@@ -315,9 +315,9 @@ int playManyGamesRandomly(std::function<int(State&)> actionGenerator, int numGam
         //    double remaining = estimatedTotal - elapsed;
         //    std::cout << "Progress: " << i << "/" << numGames << " (" << (i / static_cast<double>(numGames) * 100) << "%), Time elapsed: " << elapsed << "s, Estimated remaining: " << remaining << "s                   " << "\r";
         //}
-        if (i % 2000 == 0) {
-            std::cout << "Levels: " << levels << ", maxLevel: " << maxLevel << std::endl;
-        }
+        //if (i % 2000 == 0) {
+        //    std::cout << "Levels: " << levels << ", maxLevel: " << maxLevel << std::endl;
+        //}
 
         State state = initial(); // Random first fight & heroes
         State oldState = State({},{}); // For debugging, to print the state before an error occurs
@@ -381,7 +381,7 @@ int main(int argc, char *argv[]) {
 
     // playGame(randomAction);
     
-    playManyGamesRandomly(randomAction, 20000);
+    playManyGamesRandomly(randomAction, 500000);
 
     // temp(); // Test serialization and deserialization of State
 

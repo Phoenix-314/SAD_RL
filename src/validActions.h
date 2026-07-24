@@ -26,4 +26,5 @@ namespace validActions {
     bool isValidEndTurn(State& state);
     bool isValidAction(State& state, int action);
     std::vector<int> validActions(State& state);
+    std::vector<int> validActionsFast(State& state);
 } // namespace validActions

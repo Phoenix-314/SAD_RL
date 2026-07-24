@@ -565,7 +565,7 @@ def continueEndFight(state: State):
 
     # Step 2: (Maybe) level-up a hero
     state.level += 1
-    if state.level % 2 == 0: # Every 2 levels, level up a hero (Randomly for now, TODO)
+    if state.level % 2 == 0: # Every 2 levels, level up a hero (Randomly for now)
         levelHero(state)
 
     # Step 3: Roll Enemies

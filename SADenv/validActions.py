@@ -253,7 +253,7 @@ def isValidSpellAction(state: State, targIsEnemy: bool, spellAction: Tuple[int, 
             return False
         return state.players[targetNum].usedDie and (state.players[targetNum].currentSide is not None)
     elif spellReq in spells.SpellTargetReq.ALL_TACTICS:
-        if spells.findTacticCosts(state, spellReq) is None:  # TODO: add caching all over the place
+        if spells.findTacticCosts(state, spellReq) is None:
             return False
         
         if spellReq == spells.SpellTargetReq.DAMAGE_N_SHIELD_3: # Must be UNTARGETED
@@ -337,7 +337,7 @@ def isValidAction(state : State, action : int) -> bool:
                 return isValidEndTurn(state)
     raise ValueError(f"Unknown action type: {actionType}")
 
-def validActions(state : State) -> List[int]: # TODO - profile to see if this is a bottleneck. Optimize by not repeating checks for the same characters, and maybe caching actions
+def validActions(state : State) -> List[int]:
     validActions = []
     for i in range(len(ACTION_MAP)):
         if isValidAction(state, i):

@@ -29,7 +29,8 @@ inline const std::map<SideType, std::string> sidesReversedIDs = {
     {SideType::DAMAGE_FLANKING, "DAMAGE_FLANKING"},
     {SideType::SHIELD_ALL, "SHIELD_ALL"},
     {SideType::HEAL_ALL, "HEAL_ALL"},
-    {SideType::STUN, "STUN"}
+    {SideType::STUN, "STUN"},
+    {SideType::ERROR, "ERROR"}
 };
 
 inline const std::map<StateType, std::string> stateTypesReversedIDs = {
