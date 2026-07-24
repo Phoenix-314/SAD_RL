@@ -8,12 +8,12 @@ game by a fraction of a percent.
 
 Completed Progress:
 1) Implemented a simplified python environment of SAD and verified it is (mostly) faithful.
-
-Current Task:
 - Switch code to C++ for performance improvements. After some research, I determined cython would be ineffective for this project.
 
-Future Plans:
+Current Task:
 - Use profiling to enhance the speed of the environment.
+
+Future Plans:
 
 2) Implement RL agent to play my environment with extremely high consistency.
 Current plan is to use MCTS with DPW and a transposition table. I expect MCTS to be an effective choice
