@@ -170,12 +170,13 @@ void State::replaceHero(int index, const Ent& hero) {
             }
         }
     }
-    std::vector<std::pair<int, int>> redirectRetargeting;
+    std::vector<int> redirectRetargeting;
     for (int i=0;i<5;i++) {
         if (players[i]->redirectTarget == players[index]) {
-            redirectRetargeting.push_back(std::make_pair(i, index));
+            redirectRetargeting.push_back(i);
         }
     }
+    bool lastTargetNeedsUpdate = (lastTarget == players[index]);
 
 
     delete players[index]; // Delete the old Ent to prevent memory leak
@@ -190,8 +191,11 @@ void State::replaceHero(int index, const Ent& hero) {
     for (const auto& pair : retargeting) {
         enemyTargets[pair.first][pair.second] = players[index];
     }
-    for (const auto& pair : redirectRetargeting) {
-        players[pair.first]->redirectTarget = players[index];
+    for (const auto& heroIndex : redirectRetargeting) {
+        players[heroIndex]->redirectTarget = players[index];
+    }
+    if (lastTargetNeedsUpdate) {
+        lastTarget = players[index];
     }
 }
 

@@ -28,32 +28,6 @@
 
 std::string serializationFolderName = "../saveStates";
 
-void temp() {
-    std::ofstream ofs("stateLogger.txt");
-
-    // create class instance
-    const State state({},{});
-
-    // save data to archive
-    {
-        boost::archive::text_oarchive oa(ofs);
-        // write class instance to archive
-        oa << state;
-    	// archive and stream closed when destructors are called
-    }
-
-    // ... some time later restore the class instance to its orginal state
-    State newstate ({}, {});
-    {
-        // create and open an archive for input
-        std::ifstream ifs("stateLogger.txt");
-        boost::archive::text_iarchive ia(ifs);
-        // read class state from archive
-        ia >> newstate;
-        // archive and stream closed when destructors are called
-    }
-}
-
 std::pair<State, int> loadFile() {
     if (std::filesystem::exists(serializationFolderName) && std::filesystem::is_directory(serializationFolderName) && std::filesystem::exists(serializationFolderName + "/state_0.txt")) {
         // Check if the first save file exists
@@ -302,6 +276,7 @@ int playManyGamesRandomly(std::function<int(State&)> actionGenerator, int numGam
     Does not render anything.
     Plays numGames games with (mostly) random actions, and displays winrate, average level, and the highest level reached.
     */
+    long long actions = 0;
     int wins = 0;
     int losses = 0;
     int levels = 0;
@@ -334,7 +309,7 @@ int playManyGamesRandomly(std::function<int(State&)> actionGenerator, int numGam
                 
                 oldState = state;
                 act = actionGenerator(state);
-
+                actions += 1;
                 transition(state, act);
             } catch (const std::exception& e) {
                 // Debugging information
@@ -369,9 +344,10 @@ int playManyGamesRandomly(std::function<int(State&)> actionGenerator, int numGam
         }
     }
     std::cout << std::endl;
-    std::cout << "Wins: " << wins << ", Losses: " << losses << ", Winrate: " << (wins / static_cast<double>(wins + losses)) << ", Average Level: " << (levels / static_cast<double>(numGames)) << ", Max Level: " << maxLevel << std::endl;
+    std::cout << "Wins: " << wins << ", Losses: " << losses << ", Winrate: " << (wins / static_cast<double>(wins + losses)) << ", Total Levels: " << levels << ", Average Level: " << (levels / static_cast<double>(numGames)) << ", Max Level: " << maxLevel << std::endl;
     std::cout << "Time taken: " << (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - timer).count() / 1000.0) << "s" << std::endl;
 	std::cout << "Average time per game: " << (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - timer).count()) / (double) numGames << "ms" << std::endl;
+    std::cout << "Exact action count: " << actions << std::endl;
     return maxLevel;
 }
 
@@ -380,56 +356,10 @@ int main(int argc, char *argv[]) {
 
 
     // playGame(randomAction);
-    
-    playManyGamesRandomly(randomAction, 500000);
+    int numGames = 10000;
+    std::cout << "Playing " << numGames << " games..." << std::endl;
+    playManyGamesRandomly(randomAction, numGames);
 
-    // temp(); // Test serialization and deserialization of State
 
     return 0;
 }
-/*
-int main(int argc, char *argv[])
-{
-    initializeLibraries();
-
-    State s = initial();
-    util::printState(s);
-    Render render({1920, 1080});
-    render.render(s);
-    render.waitForInput();
-    
-    std::cout << "Hello World!" << std::endl;
-	std::cout << "Hello World!" << std::endl;
-    int x = 4;
-	int y = 5;
-    std::array<bool, 57> keywordArray = {false};
-    Side side(x, SideType::DAMAGE, keywordArray);
-
-    Ent e(100, std::array<Side, 6>{side, side, side, side, side, side}, 1, -1);
-    std::cout << "Ent HP: " << e.hp << std::endl;
-    std::cout << "Ent Size: " << e.size << std::endl;
-
-    State state(std::array<Ent, 5>{e, e, e, e, e}, std::vector<Ent>{e, e});
-    state.players[0]->redirectTarget = state.players[1]; // Set redirect target for player 0 to player 1
-
-    State stateCopy = state; // Test copy constructor
-    
-    std::cout << "State player 0 address: " << state.players[0] << std::endl;
-    std::cout << "State player 0 redirect target address: " << state.players[0]->redirectTarget << std::endl;
-    std::cout << "State player 1 address: " << state.players[1] << std::endl;
-
-    std::cout << "StateCopy player 0 address: " << stateCopy.players[0] << std::endl;
-    std::cout << "StateCopy player 0 redirect target address: " << stateCopy.players[0]->redirectTarget << std::endl;
-    std::cout << "StateCopy player 1 address: " << stateCopy.players[1] << std::endl;
-
-
-    std::cout << "State Turn: " << state.turn << std::endl;
-    std::cout << "State Players: " << state.players.size() << std::endl;
-    std::cout << "State Enemies: " << state.enemies.size() << std::endl;
-    
-    std::cout << util::findTopPlayer(state) << std::endl;
-    std::cout << util::findTopPlayer(stateCopy) << std::endl;
-
-    return 0;
-}
-*/

@@ -257,7 +257,9 @@ def playManyGamesRandomly(actionGenerator, numGames=1000):
 
 def main():
     # playGame(actionGenerator=randomAction)
-    playManyGamesRandomly(actionGenerator=randomAction, numGames=10000)
+    print("Warning: Python version of this environment has not been updated to match the C++ version.")
+    print("Various bug fixes and speed optimizations have not been implemented. Do not use this version.\n\n\n\n")
+    playManyGamesRandomly(actionGenerator=randomAction, numGames=1000)
 
 if __name__ == "__main__":
 	main()

@@ -4,7 +4,7 @@ workspace "SAD_CPP"
     configurations { "Debug", "Release" }
     architecture "x64"
 
-    project "HelloWorld"
+    project "SAD_CPP"
         kind "ConsoleApp"
         --profile "On"
         language "C++"
@@ -13,8 +13,9 @@ workspace "SAD_CPP"
         targetdir   "build/%{cfg.buildcfg}/bin"
         objdir      "build/%{cfg.buildcfg}/obj"
 
-        location "./src"
-        files { "%{prj.location}/**.h", "%{prj.location}/**.cpp" }
+        location "project"
+        files { "src/**.cpp", "include/**.h" }
+        includedirs { "include" }
 
         filter "configurations:Debug"
             defines { "DEBUG" }

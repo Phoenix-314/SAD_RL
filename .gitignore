@@ -6,11 +6,15 @@
 **.vcxproj.user
 **.vcxproj.filters
 
+# Premake
+premake5.exe
+
 # Conan
 /dependencies
 
 # Build output
 /build
+/project
 
 # Python
 /__pycache__/
