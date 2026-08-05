@@ -19,7 +19,10 @@
 #include "factions.h"
 #include "validActions.h"
 
-#include "randomAction.h"
+#include "actionGenerator.h"
+#include "randomActor.h"
+#include "trialActor.h"
+
 
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
@@ -27,6 +30,16 @@
 
 
 std::string serializationFolderName = "../saveStates";
+
+State loadStateFromFile(const std::string& filename) {
+    State state;
+    {
+        std::ifstream ifs(filename);
+        boost::archive::text_iarchive ia(ifs);
+        ia >> state;
+    }
+    return state;
+}
 
 std::pair<State, int> loadFile() {
     if (std::filesystem::exists(serializationFolderName) && std::filesystem::is_directory(serializationFolderName) && std::filesystem::exists(serializationFolderName + "/state_0.txt")) {
@@ -64,7 +77,7 @@ void saveFile(const State& state, int i) {
     }
 }
 
-State runInputCycle(Render& renderer, const State& oldState, const State& ancientState, const std::function<int(State&)>& actionGenerator) {
+State runInputCycle(Render& renderer, const State& oldState, const State& ancientState, ActionGenerator& actionGenerator) {
     /*
     Updates pygame display and reads from pygame console input. (If actionGenerator is provided, empty console input will be filled with actions from the generator)
     Returns the new state after executing the action, or returns the old state if the input was invalid.
@@ -77,10 +90,9 @@ State runInputCycle(Render& renderer, const State& oldState, const State& ancien
     saX to view ally X (1-5)
     seX to view enemy X (1-10)
     b to go back to the previous state (or forward, if b was just used)
-    x<code> to execute arbitrary python code (for testing)
     DAxy to use ally x's die on target y (x = 1-5, y = 1-10, or - for untargeted)
     DExy, SAxy, SExy for similar actions. SA0/SE0 is burst
-    RXXXXX to reroll allies with the given dice values (X = 0-1, 1 = reroll, 0 = keep)
+    RXXXXX to reroll allies with the given dice values (1 = reroll, 0 = keep)
     E to end turn
     C to continue (if the game is in a non-interactive state)
     */
@@ -89,7 +101,7 @@ State runInputCycle(Render& renderer, const State& oldState, const State& ancien
     if (!line.has_value() || line.value().empty()) {
         try {
 
-            int act = actionGenerator(state);
+            int act = actionGenerator.generateAction(state);
             transition(state, act);
             renderer.addValueToConsoleHistory(util::getActionStr(act));
             renderer.render(state);
@@ -240,7 +252,7 @@ std::pair<State, int> loadState() {
     }
 }
 
-int playGame(std::function<int(State&)> actionGenerator) {
+int playGame(ActionGenerator& actionGenerator, State* statePtr=nullptr) {
     /*
     Allows user to play game with console input in a pygame window. Saves all non-error states. 
     If a state has been saved, that state will be loaded when restarting. Else, starts a new state
@@ -248,7 +260,12 @@ int playGame(std::function<int(State&)> actionGenerator) {
     */
     Render renderer = Render({1920, 1080});
     
-    std::pair<State, int> x = loadState();
+    std::pair<State, int> x;
+    if (statePtr == nullptr) {
+        x = loadState();
+    } else {
+        x = std::make_pair(*statePtr, 0);
+    }
     State state = x.first;
     int i = x.second;
     State lastState = State({}, {});
@@ -271,7 +288,7 @@ int playGame(std::function<int(State&)> actionGenerator) {
     }
 }
 
-int playManyGamesRandomly(std::function<int(State&)> actionGenerator, int numGames=10000) {
+int playManyGamesRandomly(ActionGenerator& actionGenerator, int numGames=10000) {
     /*
     Does not render anything.
     Plays numGames games with (mostly) random actions, and displays winrate, average level, and the highest level reached.
@@ -282,14 +299,16 @@ int playManyGamesRandomly(std::function<int(State&)> actionGenerator, int numGam
     int levels = 0;
     int maxLevel = 0;
     const auto timer = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i <= numGames; i++) {
-        // Progress bar with time estimate
-        //if (i % std::max(numGames / 345, 1) == 0 || i == numGames - 1) {
-        //    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - timer).count() / 1000.0;
-        //    double estimatedTotal = elapsed / (i + 1) * numGames;
-        //    double remaining = estimatedTotal - elapsed;
-        //    std::cout << "Progress: " << i << "/" << numGames << " (" << (i / static_cast<double>(numGames) * 100) << "%), Time elapsed: " << elapsed << "s, Estimated remaining: " << remaining << "s                   " << "\r";
-        //}
+    for (int i = 1; i <= numGames; i++) {
+        // Progress bar with time estimate    
+        if (i % std::max(numGames / 345, 1) == 0 || i == numGames - 1) {
+            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - timer).count() / 1000.0;
+            int tmpI = (i == 1) ? 1 : (i - 1); // Prevent division by zero
+            double estimatedTotal = elapsed / tmpI * numGames;
+            double remaining = estimatedTotal - elapsed;
+            std::cout << "Progress: " << (i-1) << "/" << numGames << " (" << ((i-1) / static_cast<double>(numGames) * 100) << "%), Time elapsed: " << elapsed << "s, Estimated remaining: " << remaining << "s                   " << "\r";
+        }
+        
         //if (i % 2000 == 0) {
         //    std::cout << "Levels: " << levels << ", maxLevel: " << maxLevel << std::endl;
         //}
@@ -307,8 +326,10 @@ int playManyGamesRandomly(std::function<int(State&)> actionGenerator, int numGam
                     throw std::runtime_error("Action count exceeded 10000");
                 }
                 
+                std::cout << "Actions: " << actions << ", Game: " << i << "/" << numGames << ", Level: " << state.level << std::endl; // failed on action 2093
+                saveFile(state, -101); // Save state before executing action, for debugging
                 oldState = state;
-                act = actionGenerator(state);
+                act = actionGenerator.generateAction(state);
                 actions += 1;
                 transition(state, act);
             } catch (const std::exception& e) {
@@ -343,7 +364,8 @@ int playManyGamesRandomly(std::function<int(State&)> actionGenerator, int numGam
             losses += 1;
         }
     }
-    std::cout << std::endl;
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - timer).count() / 1000.0;
+    std::cout << "Progress: " << numGames << "/" << numGames << " (" << (numGames / static_cast<double>(numGames) * 100) << "%), Time elapsed: " << elapsed << "s                                                                           " << std::endl;
     std::cout << "Wins: " << wins << ", Losses: " << losses << ", Winrate: " << (wins / static_cast<double>(wins + losses)) << ", Total Levels: " << levels << ", Average Level: " << (levels / static_cast<double>(numGames)) << ", Max Level: " << maxLevel << std::endl;
     std::cout << "Time taken: " << (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - timer).count() / 1000.0) << "s" << std::endl;
 	std::cout << "Average time per game: " << (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - timer).count()) / (double) numGames << "ms" << std::endl;
@@ -352,13 +374,28 @@ int playManyGamesRandomly(std::function<int(State&)> actionGenerator, int numGam
 }
 
 int main(int argc, char *argv[]) {
+
     initializeLibraries();
 
+    RandomActor randomActor;
+    TrialActor trialActor(100);
 
-    // playGame(randomAction);
-    int numGames = 10000;
+    // State state = genState({LUDUS, LEADER, VALKYRIE, MEDIC, ARTIFICER}, {WARCHIEF}, {std::array<int, 5>{0, 0, 0, 0, 0}});
+    // state.players[1]->dead = true;
+    // state.players[2]->dead = true;
+    // state.players[3]->dead = true;
+    // state.players[4]->dead = true;
+
+    // state.players[0]->hp = 1;
+    // std::cout << std::filesystem::exists(serializationFolderName + "/state_-101.txt") << std::endl;
+    // State state = loadStateFromFile(serializationFolderName + "/state_-101.txt");
+    // util::printState(state, true);
+    // trialActor.generateAction(state);
+    // playGame(randomActor, &state);
+    // return 0;
+    int numGames = 4;
     std::cout << "Playing " << numGames << " games..." << std::endl;
-    playManyGamesRandomly(randomAction, numGames);
+    playManyGamesRandomly(trialActor, numGames);
 
 
     return 0;

@@ -340,8 +340,8 @@ void useDice(State& state, Ent* source, const std::vector<Ent*>& targets) {
         } else if (side.type == SideType::SHIELD || side.type == SideType::SHIELD_ALL) {
             bool previouslyDying = util::targetIsDying(state, *target);
             target->shield += pips; // shielding
-            if (side.keywords[KeywordID::RESCUE] && previouslyDying && !util::targetIsDying(state, *target)) {
-                useSide = false;
+            if (side.keywords[KeywordID::RESCUE] && previouslyDying && !util::targetIsDying(state, *target) && !(source->inflictedPained || util::hasCopycattedKeyword(state, source->currentSide, KeywordID::PAIN))) {
+                useSide = false;                               // Inflict pain prevents rescue to eliminate infinite loops (pain is applied to later, so targetIsDying doesnt account for it)
             }
         } else if (side.type == SideType::HEALSHIELD) {
             target->shield += pips;
@@ -349,7 +349,7 @@ void useDice(State& state, Ent* source, const std::vector<Ent*>& targets) {
         } else if (side.type == SideType::HEAL || side.type == SideType::HEAL_ALL) {
             bool previouslyDying = util::targetIsDying(state, *target);
             factions::heal(state, target, pips);
-            if (side.keywords[KeywordID::RESCUE] && previouslyDying && !util::targetIsDying(state, *target)) {
+            if (side.keywords[KeywordID::RESCUE] && previouslyDying && !util::targetIsDying(state, *target) && !(source->inflictedPained || util::hasCopycattedKeyword(state, source->currentSide, KeywordID::PAIN))) {
                 useSide = false;
             }   
         } else if (side.type == SideType::RECHARGE) {
@@ -565,6 +565,7 @@ void enemyAttacks(State& state) {
         if (!mon->usedDie && !mon->exerted && findStaticPips(state, mon) > 0 && mon->currentSide.type != SideType::BLANK) { // if the enemy has strength to use a die
             useDice(state, mon, state.enemyTargets[i]);
         }
+        factions::resetHealths(state);
         factions::handleSDS(state); // Theoretically, a pained bones or a bandit could have death below them, stopping other enemies from attacking
     }
     
@@ -1026,4 +1027,14 @@ bool isTerminal(const State& state) {
         return true;
     }
     return false;
+}
+
+int isFightEnd(const State& state) {
+    if (state.stateType == StateType::WON || state.stateType == StateType::EMPTY_FIGHT) {
+        return 1; // fight won
+    }
+    if (state.stateType == StateType::LOST) {
+        return -1; // fight lost
+    }
+    return 0; // fight continues
 }

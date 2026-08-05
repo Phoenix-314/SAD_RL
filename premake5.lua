@@ -28,4 +28,4 @@ workspace "SAD_CPP"
         filter {}
 
         conan_setup()
-        --linkoptions { "/IGNORE:4099" }
+        linkoptions { "/IGNORE:4099" }

@@ -471,12 +471,9 @@ bool isValidAction(State& state, int action) {
     throw std::runtime_error("Unknown action type");
 }
 
-std::vector<int> validActions(State& state) { // TODO - profile to see if this is a bottleneck. Optimize by not repeating checks for the same characters, and maybe caching actions
+std::vector<int> validActions(State& state) {
     std::vector<int> validActions;
     for (int i = 0; i < ACTION_MAP.size(); i++) {
-        // if (i == 100) {
-        //     continue; // TODO Remove
-        // }
         if (isValidAction(state, i)) {
             validActions.push_back(i);
             

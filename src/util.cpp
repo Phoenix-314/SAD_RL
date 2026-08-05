@@ -113,8 +113,9 @@ bool hasRoom(const State& state, const Ent& reinforceEnt) {
 
 bool targetIsDying(const State& state, const Ent& ent) {
     int netPoison = std::max((ent.poison + ent.incomingPoison) - (ent.regen), 0); // ent.poison may be negative
-    bool dyingToPoison = netPoison >= ent.hp;
-    bool dyingToDamage = (netPoison + ent.incomingDamage >= ent.hp + ent.shield);
+    int effectiveHP = std::min(ent.hp, ent.maxHP);
+    bool dyingToPoison = netPoison >= effectiveHP;
+    bool dyingToDamage = (netPoison + ent.incomingDamage >= effectiveHP + ent.shield);
 
     if (ent.undead || ent.intangibled || ent.dead) {
         return false;

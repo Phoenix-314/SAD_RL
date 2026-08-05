@@ -1,4 +1,4 @@
-#include "randomAction.h"
+#include "randomActor.h"
 
 #include <random>
 #include <array>
@@ -9,25 +9,9 @@
 #include "keywordIDs.h"
 #include "util.h"
 
-int randomAction(State& state) {
 
-    //std::vector<int> validActionsList = validActions::validActions(state);
+int RandomActor::generateAction(State& state) {
     std::vector<int> validActionsList = validActions::validActionsFast(state);
-
-    //if (validActionsList != validActionsListFast) {
-    //    std::cout << "validActions OG: ";
-    //    for (const auto& v : validActionsList) {
-    //        std::cout << v << "(" << util::getActionStr(v) << ")" << ", ";
-    //    }
-    //    std::cout << std::endl;
-    //    std::cout << "validActions Fast: ";
-    //    for (const auto& v : validActionsListFast) {
-    //        std::cout << v << "(" << util::getActionStr(v) << ")" << ", ";
-    //    }
-    //    std::cout << std::endl;
-    //    util::printState(state, true);
-    //    throw std::runtime_error("validActionsFast and validActions returned different results");
-    //}
 
     int act = -1;
     while (true) {

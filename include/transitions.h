@@ -59,4 +59,5 @@ void rerollAction(State& state, std::array<bool, 5> rerollBits);
 
 void rollAllyDie(State& state, Ent* player, int num);
     
-bool isTerminal(const State& state);
+bool isTerminal(const State& state); // Returns true if the state is terminal (fight won or lost), false otherwise
+int isFightEnd(const State& state); // Returns 1 if fight won, -1 if fight lost, 0 if fight continues
