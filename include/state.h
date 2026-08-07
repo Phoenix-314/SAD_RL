@@ -38,6 +38,8 @@ public:
     State(const State& other);
     State& operator=(const State& other);
 
+    bool operator==(const State& other) const;
+
 
     void addEnemyBatch(const std::vector<Ent>& newEnemies);
 
@@ -96,6 +98,8 @@ public:
     StateType stateType; // Used to make it more convenient for RL agent to learn/search
 
 };
+
+std::size_t hash_value(State const& s);
     
     
 namespace boost {

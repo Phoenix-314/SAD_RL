@@ -42,10 +42,13 @@ public:
     Side() : value(-1), type(SideType::BLANK), keywords({false}) {}
     Side(int value, SideType type, const std::array<bool, NUM_KEYWORDS>& keywords)
         : value(value), type(type), keywords(keywords) {}
+    bool operator==(const Side& other) const;
     int value;
     SideType type;
     std::array<bool, NUM_KEYWORDS> keywords; // Length NUM_KEYWORDS, where bit i indicates presence of Keyword with value i
 };
+
+std::size_t hash_value(Side const& s);
 
 class Ent {
 public:
@@ -152,7 +155,8 @@ public:
     spellID(spellID), onHitFunction(onHitFunction),
     specialHP(specialHP), sourceID(sourceID), positionID(positionID) {}
 
-
+    bool operator==(const Ent& other) const;
+    bool operator!=(const Ent& other) const;
 
     int hp;
     int maxHP;
@@ -207,6 +211,8 @@ public:
     int positionID; // For monsters only, used for summoning
 };
 
+std::size_t hash_value(Ent const& p);
+        
 
 namespace boost {
 namespace serialization {

@@ -3,6 +3,8 @@
 #include <stdexcept>
 #include <random>
 
+#include <boost/functional/hash.hpp>
+
 State::State(const std::array<Ent, 5> players, const std::vector<Ent>& enemies) {
     for (int i = 0; i < 5; i++) {
         this->players[i] = new Ent(players[i]);
@@ -210,4 +212,108 @@ void State::killEnemy(int index) {
     delete dyingMon; // Free the memory for the dying monster
     enemies.erase(enemies.begin() + index); // Remove the pointer from the vector
     enemyTargets.erase(enemyTargets.begin() + index); // Remove the corresponding targets
+}
+
+bool State::operator==(const State& other) const {
+    
+    if (!std::equal(players.begin(), players.end(), other.players.begin(), other.players.end(), [](Ent* a, Ent* b) { return *a == *b; })) {
+        return false;
+    }
+
+    if (spellData != other.spellData) {
+        return false;
+    }
+
+    if (mana != other.mana || fortoldMana != other.fortoldMana || rerolls != other.rerolls) {
+        return false;
+    }
+
+    
+    if (!std::equal(enemies.begin(), enemies.end(), other.enemies.begin(), other.enemies.end(), [](Ent* a, Ent* b) { return *a == *b; })) {
+        return false;
+    }
+    
+
+    if (!std::equal(enemyTargets.begin(), enemyTargets.end(), other.enemyTargets.begin(), other.enemyTargets.end(), [](const std::vector<Ent*>& a, const std::vector<Ent*>& b) {
+        return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](Ent* a, Ent* b) {
+            return a->positionID == b->positionID && (a->sourceID < 0) == (b->sourceID < 0); // Compare positionID and sourceID for equality
+        });
+    })) {
+        return false;
+    }
+    
+    if (!std::equal(imminentSummons.begin(), imminentSummons.end(), other.imminentSummons.begin(), other.imminentSummons.end(), [](Ent* a, Ent* b) { return *a == *b; })) {
+        return false;
+    }
+    if (!std::equal(reinforcements.begin(), reinforcements.end(), other.reinforcements.begin(), other.reinforcements.end(), [](Ent* a, Ent* b) { return *a == *b; })) {
+        return false;
+    }
+    
+
+    if (turn != other.turn || prevLastStrikeVal != other.prevLastStrikeVal || lastStrikeVal != other.lastStrikeVal) {
+        return false;
+    }
+    if (lastDie != other.lastDie) {
+        return false;
+    }
+    if (level != other.level || playerLevels != other.playerLevels) {
+        return false;
+    }
+    if (enemyDamageD != other.enemyDamageD || hexiaD != other.hexiaD || bansheeD != other.bansheeD ||
+        brambleD != other.brambleD || madnessD != other.madnessD || handD != other.handD ||
+        warchiefD != other.warchiefD || stateType != other.stateType) {
+        return false;
+    }
+    return true;
+}
+
+std::size_t hash_value(State const& s) {
+    std::size_t seed = 0;
+
+    
+    for (const auto& player : s.players) {
+        boost::hash_combine(seed, *player);
+    }
+    boost::hash_combine(seed, s.spellData);
+
+    boost::hash_combine(seed, s.mana);
+    boost::hash_combine(seed, s.fortoldMana);
+    boost::hash_combine(seed, s.rerolls);
+    
+    for (const auto& enemy : s.enemies) {
+        boost::hash_combine(seed, *enemy);
+    }
+    for (const auto& enemyTargetList : s.enemyTargets) {
+        for (const auto& enemyTarget : enemyTargetList) {
+            boost::hash_combine(seed, enemyTarget->positionID); // Use positionID and sourceID as unique identifiers for the Ent
+            boost::hash_combine(seed, enemyTarget->sourceID < 0);
+        }
+    }
+
+    for (const auto& summon : s.imminentSummons) {
+        boost::hash_combine(seed, *summon);
+        
+    }
+    for (const auto& reinforcement : s.reinforcements) {
+        boost::hash_combine(seed, *reinforcement);
+    }
+
+    boost::hash_combine(seed, s.turn);
+    boost::hash_combine(seed, s.prevLastStrikeVal);
+    boost::hash_combine(seed, s.lastStrikeVal);
+    if (s.lastDie.has_value()) {
+        boost::hash_combine(seed, s.lastDie.value());
+    }
+    boost::hash_combine(seed, s.level);
+    boost::hash_combine(seed, s.playerLevels);
+    boost::hash_combine(seed, s.enemyDamageD);
+    boost::hash_combine(seed, s.hexiaD);
+    boost::hash_combine(seed, s.bansheeD);
+    boost::hash_combine(seed, s.brambleD);
+    boost::hash_combine(seed, s.madnessD);
+    boost::hash_combine(seed, s.handD);
+    boost::hash_combine(seed, s.warchiefD);
+    boost::hash_combine(seed, static_cast<int>(s.stateType));
+
+    return seed;
 }
