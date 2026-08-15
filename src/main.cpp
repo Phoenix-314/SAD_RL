@@ -7,6 +7,9 @@
 #include <filesystem>
 #include <optional>
 #include <exception>
+#include <set>
+#include <unordered_map>
+
 
 #include "state.h"
 #include "ents.h"
@@ -22,12 +25,13 @@
 #include "actionGenerator.h"
 #include "randomActor.h"
 #include "trialActor.h"
+#include "mcts.h"
 
 
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
 #include <fstream>
-
+#include <boost/functional/hash.hpp>
 
 std::string serializationFolderName = "../saveStates";
 
@@ -154,6 +158,7 @@ State runInputCycle(Render& renderer, const State& oldState, const State& ancien
             return ancientState;
         } else if (x[0] == 'x') {
             // exec(x[1:]) // Local testing program - arbitrary code execution is harder in cpp
+			std::cout << actionGenerator.toString(int(x[1] - '0')) << std::endl;
         } else {
             int action = -1;
             std::pair<int, int> data = {0, 0};
@@ -288,7 +293,7 @@ int playGame(ActionGenerator& actionGenerator, State* statePtr=nullptr) {
     }
 }
 
-int playManyGamesRandomly(ActionGenerator& actionGenerator, int numGames=10000) {
+int playManyGamesRandomly(ActionGenerator& actionGenerator, int numGames=10000, int printProgress=1) {
     /*
     Does not render anything.
     Plays numGames games with (mostly) random actions, and displays winrate, average level, and the highest level reached.
@@ -300,18 +305,21 @@ int playManyGamesRandomly(ActionGenerator& actionGenerator, int numGames=10000) 
     int maxLevel = 0;
     const auto timer = std::chrono::high_resolution_clock::now();
     for (int i = 1; i <= numGames; i++) {
-        // Progress bar with time estimate    
-        if (i % std::max(numGames / 345, 1) == 0 || i == numGames - 1) {
-            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - timer).count() / 1000.0;
-            int tmpI = (i == 1) ? 1 : (i - 1); // Prevent division by zero
-            double estimatedTotal = elapsed / tmpI * numGames;
-            double remaining = estimatedTotal - elapsed;
-            std::cout << "Progress: " << (i-1) << "/" << numGames << " (" << ((i-1) / static_cast<double>(numGames) * 100) << "%), Time elapsed: " << elapsed << "s, Estimated remaining: " << remaining << "s                   " << "\r";
+        // Progress bar with time estimate
+        if (printProgress == 1) {
+            if (i % std::max(numGames / 345, 1) == 0 || i == numGames - 1) {
+                auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - timer).count() / 1000.0;
+                int tmpI = (i == 1) ? 1 : (i - 1); // Prevent division by zero
+                double estimatedTotal = elapsed / tmpI * numGames;
+                double remaining = estimatedTotal - elapsed;
+                std::cout << "Progress: " << (i-1) << "/" << numGames << " (" << ((i-1) / static_cast<double>(numGames) * 100) << "%), Time elapsed: " << elapsed << "s, Estimated remaining: " << remaining << "s                   " << "\r";
+            }
+        } else if (printProgress >= 2) {
+            if (i % std::max(numGames / 20, 1) == 0) {
+                std::cout << "After " << i-1 << " Games-> " << "Levels: " << levels << ", actions: " << actions << std::endl;
+            }
         }
         
-        //if (i % 2000 == 0) {
-        //    std::cout << "Levels: " << levels << ", maxLevel: " << maxLevel << std::endl;
-        //}
 
         State state = initial(); // Random first fight & heroes
         State oldState = State({},{}); // For debugging, to print the state before an error occurs
@@ -325,9 +333,10 @@ int playManyGamesRandomly(ActionGenerator& actionGenerator, int numGames=10000) 
                     std::cout << "Action count exceeded 10000, breaking out of loop" << std::endl;
                     throw std::runtime_error("Action count exceeded 10000");
                 }
-                
-                std::cout << "Actions: " << actions << ", Game: " << i << "/" << numGames << ", Level: " << state.level << std::endl; // failed on action 2093
-                saveFile(state, -101); // Save state before executing action, for debugging
+                if (printProgress >= 3) {
+                    std::cout << "Action count: " << actionCount << ", Level: " << state.level << std::endl;
+                }
+                // saveFile(state, -101); // Save state before executing action, for debugging
                 oldState = state;
                 act = actionGenerator.generateAction(state);
                 actions += 1;
@@ -338,14 +347,6 @@ int playManyGamesRandomly(ActionGenerator& actionGenerator, int numGames=10000) 
                 std::cout << "Error: " << e.what() << std::endl;
 
                 std::cout << "ActionError: " << act << " " << util::getActionStr(act) << std::endl;
-                
-                // auto x = validActions::findMadnessedHero(oldState);
-                // int index = x.first;
-                // Ent* possessedHero = x.second;
-                // std::cout << "Temp info, Possessed: " << index << " " << possessedHero << std::endl;
-                // std::cout << "Temp info, CanUseDice: " << validActions::diceUsable(oldState, index) << std::endl;
-                // std::cout << "Temp info, checkBasicValidity: " << validActions::checkBasicValidity(oldState, index, ) << std::endl;
-
 
                 std::cout << "Old State: " << std::endl;
                 util::printState(oldState, true);
@@ -364,6 +365,7 @@ int playManyGamesRandomly(ActionGenerator& actionGenerator, int numGames=10000) 
             losses += 1;
         }
     }
+
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - timer).count() / 1000.0;
     std::cout << "Progress: " << numGames << "/" << numGames << " (" << (numGames / static_cast<double>(numGames) * 100) << "%), Time elapsed: " << elapsed << "s                                                                           " << std::endl;
     std::cout << "Wins: " << wins << ", Losses: " << losses << ", Winrate: " << (wins / static_cast<double>(wins + losses)) << ", Total Levels: " << levels << ", Average Level: " << (levels / static_cast<double>(numGames)) << ", Max Level: " << maxLevel << std::endl;
@@ -378,8 +380,10 @@ int main(int argc, char *argv[]) {
     initializeLibraries();
 
     RandomActor randomActor;
-    TrialActor trialActor(100);
+    TrialActor trialActor(500);
+    MCTS mcts(5000, 1.414, -0.0, 0.5, 0); // nSims, K, alpha, beta, progressBar
 
+    // State state = initial();
     // State state = genState({LUDUS, LEADER, VALKYRIE, MEDIC, ARTIFICER}, {WARCHIEF}, {std::array<int, 5>{0, 0, 0, 0, 0}});
     // state.players[1]->dead = true;
     // state.players[2]->dead = true;
@@ -387,15 +391,56 @@ int main(int argc, char *argv[]) {
     // state.players[4]->dead = true;
 
     // state.players[0]->hp = 1;
+
+    // mcts.generateAction(state);
+    
     // std::cout << std::filesystem::exists(serializationFolderName + "/state_-101.txt") << std::endl;
     // State state = loadStateFromFile(serializationFolderName + "/state_-101.txt");
     // util::printState(state, true);
     // trialActor.generateAction(state);
     // playGame(randomActor, &state);
     // return 0;
-    int numGames = 4;
+    //std::unordered_map<State, int> stateMap;
+
+    // State s = initial();
+    // Ent e = *s.enemies[0];
+    // std::cout << boost::hash<Ent>()(e) << std::endl;
+    // std::unordered_map<Ent, int, boost::hash<Ent>> entMap;
+    // entMap[e] = 1;
+    // e.hp -= 1;
+    // std::cout << boost::hash<Ent>()(e) << std::endl;
+    // entMap[e] = 2;
+    // e.hp -= 1;
+    // std::cout << boost::hash<Ent>()(e) << std::endl;
+    // entMap[e] = 3;
+    // e.hp += 1;
+    // std::cout << boost::hash<Ent>()(e) << std::endl;
+    // std::cout << "Ent map size: " << entMap.size() << "with entMap[Ent] = " << entMap[e] << std::endl;
+
+    // std::unordered_map<State, int, boost::hash<State>> stateMap;
+    // State q = initial();
+    // std::cout << (q == q) << std::endl;
+    // std::cout << boost::hash<State>()(q) << std::endl;
+    // stateMap[q] = 1;
+    // q.players[0]->hp -= 1;
+    // std::cout << boost::hash<State>()(q) << std::endl;
+    // stateMap[q] = 2;
+    // q.players[2]->redirectTarget = q.players[4];
+    // std::cout << boost::hash<State>()(q) << std::endl;
+    // stateMap[q] = 3;
+    // q.players[2]->redirectTarget = nullptr;
+    // q.players[0]->hp += 1;
+    // std::cout << boost::hash<State>()(q) << std::endl;
+    // std::cout << "State map size: " << stateMap.size() << "with stateMap[State] = " << stateMap[q] << std::endl;
+
+    // return 0;
+    int numGames = 5;
+    rand();
     std::cout << "Playing " << numGames << " games..." << std::endl;
-    playManyGamesRandomly(trialActor, numGames);
+	State state = initial();
+    playGame(mcts, &state);
+    //playManyGamesRandomly(mcts, numGames, 2);
+    //playManyGamesRandomly(trialActor, numGames, 2);
 
 
     return 0;

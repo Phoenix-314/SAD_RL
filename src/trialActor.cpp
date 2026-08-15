@@ -11,13 +11,14 @@
 
 int TrialActor::generateAction(State& state) {
     // std::cout<< "TrialActor: Generating action for state with level: " << state.level << std::endl;
-
+    lastTrials.clear();
     std::vector<int> validActionsList = validActions::validActionsFast(state);
 
     int bestAction = -1;
     int bestScore = -1;
     for (int i=0; i < validActionsList.size(); i++) {
         int tmp = _evaluateAction(state, validActionsList[i], simNum);
+        lastTrials.push_back(std::make_pair(validActionsList[i], tmp));
         if (tmp > bestScore) {
             bestScore = tmp;
             bestAction = validActionsList[i];
@@ -57,4 +58,15 @@ int TrialActor::_evaluateAction(State& state, int action, int numSims) {
     }
     
     return netSuccesses;
+}
+
+std::string TrialActor::toString(int detail) {
+    std::string ret;
+    ret = "TrialActor: simNum=" + std::to_string(simNum);
+    ret += "\nlastTrials=[\n";
+    for (int i=0; i < lastTrials.size(); i++) {
+        ret += "\t" + std::to_string(lastTrials[i].first) + "(" + util::getActionStr(lastTrials[i].first) + ")=" + std::to_string(lastTrials[i].second / static_cast<double>(simNum)) + "\n";
+    }
+    ret += "]\n";
+    return ret;
 }

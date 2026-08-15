@@ -6,7 +6,7 @@ workspace "SAD_CPP"
 
     project "SAD_CPP"
         kind "ConsoleApp"
-        --profile "On"
+        profile "On" --
         language "C++"
         cppdialect "C++20"
 

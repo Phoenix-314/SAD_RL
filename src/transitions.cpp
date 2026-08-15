@@ -746,6 +746,8 @@ void generateEnemies(State& state) {
 void resetState(State& state) {
     for (int i = 0; i < 5; i++) {
         state.replaceHero(i, SourceEnt::ALL_HEROS[state.players[i]->sourceID]); // loads character with no afflictions of any kind
+        state.players[i]->currentSideNum = 0;
+        state.players[i]->currentSide = state.players[i]->sides[0];
     }
     state.spellData = std::array<int, 6>({SpellData::STANDARD, SpellData::STANDARD, SpellData::STANDARD, SpellData::STANDARD, SpellData::STANDARD, SpellData::STANDARD});
     

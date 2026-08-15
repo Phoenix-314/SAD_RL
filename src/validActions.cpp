@@ -472,6 +472,8 @@ bool isValidAction(State& state, int action) {
 }
 
 std::vector<int> validActions(State& state) {
+    throw std::runtime_error("validActions is deprecated. Use validActionsFast instead.");
+
     std::vector<int> validActions;
     for (int i = 0; i < ACTION_MAP.size(); i++) {
         if (isValidAction(state, i)) {
@@ -489,6 +491,9 @@ std::vector<int> validActions(State& state) {
 
 
 std::vector<int> validActionsFast(State& state) {
+    /*
+     * Determines all possible valid actions for a state. Avoids repeat calculations on shared data between actions
+    */
     std::vector<bool> validActions(183, false); // Actions will be updated to true if valid, then converted to a vector of ints at the end
 
     /*
