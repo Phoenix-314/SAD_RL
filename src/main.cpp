@@ -25,6 +25,8 @@
 #include "actionGenerator.h"
 #include "randomActor.h"
 #include "trialActor.h"
+#include "heuristicActor.h"
+#include "triristicActor.h"
 #include "mcts.h"
 
 
@@ -99,6 +101,7 @@ State runInputCycle(Render& renderer, const State& oldState, const State& ancien
     RXXXXX to reroll allies with the given dice values (1 = reroll, 0 = keep)
     E to end turn
     C to continue (if the game is in a non-interactive state)
+    x and y for debugging
     */
     State state = oldState;
     std::optional<std::string> line = renderer.readConsoleLine(">>> ", &state);
@@ -159,6 +162,47 @@ State runInputCycle(Render& renderer, const State& oldState, const State& ancien
         } else if (x[0] == 'x') {
             // exec(x[1:]) // Local testing program - arbitrary code execution is harder in cpp
 			std::cout << actionGenerator.toString(int(x[1] - '0')) << std::endl;
+        } else if (x[0] == 'y') {
+            // std::unordered_map<State, int, boost::hash<State>> stateMap;
+            // int countVisits = 0;
+            // int countUniqueStates = 0;
+            // int countTotal = 0;
+            // for (const auto& [act1, randNodeUPtr1] : actionGenerator.root->children) {
+            //     int countUniqueStatesBefore = (int) stateMap.size();
+            //     int numNonUniqueStatesBefore = countTotal;
+            //     for (const auto& [state1, decNodeUPtr1] : randNodeUPtr1->children) {
+            //         stateMap[state1]++;
+            //         countTotal++;
+            //         countVisits += decNodeUPtr1->visits;
+            //         for (const auto& [act2, randNodeUPtr2] : decNodeUPtr1->children) {
+            //             for (const auto& [state2, decNodeUPtr2] : randNodeUPtr2->children) {
+            //             }
+            //         }
+            //     }
+            //     std::cout << stateMap.size() - countUniqueStatesBefore << " unique states found for action " << util::getActionStr(act1) << " and ";
+            //     std::cout << countTotal - numNonUniqueStatesBefore << " non-unique states found for action " << util::getActionStr(act1) << std::endl;
+            // }
+            // std::cout << "Unique states: " << stateMap.size() << ", Total states: " << countTotal << ", Total visits: " << countVisits << std::endl;
+
+            // int maxTreeDepth = 0;
+            // int totalTreeDepth = 0;
+            // int numLeaves = 0;
+            // std::function<void(DecisionNode*, int)> traverseTree = [&](DecisionNode* node, int depth) {
+            //     if (node->children.empty()) {
+            //         maxTreeDepth = std::max(maxTreeDepth, depth);
+            //         totalTreeDepth += depth;
+            //         numLeaves++;
+            //     } else {
+            //         for (const auto& [act, randNodeUPtr] : node->children) {
+            //             for (const auto& [state, decNodeUPtr] : randNodeUPtr->children) {
+            //                 traverseTree(decNodeUPtr.get(), depth + 1);
+            //             }
+            //         }
+            //     }
+            // };
+            // traverseTree(actionGenerator.root.get(), 0);
+            // std::cout << "Max tree depth: " << maxTreeDepth << ", Average tree depth: " << (numLeaves > 0 ? static_cast<double>(totalTreeDepth) / numLeaves : 0) << std::endl;
+            // return oldState;
         } else {
             int action = -1;
             std::pair<int, int> data = {0, 0};
@@ -368,10 +412,12 @@ int playManyGamesRandomly(ActionGenerator& actionGenerator, int numGames=10000, 
 
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - timer).count() / 1000.0;
     std::cout << "Progress: " << numGames << "/" << numGames << " (" << (numGames / static_cast<double>(numGames) * 100) << "%), Time elapsed: " << elapsed << "s                                                                           " << std::endl;
+	std::cout << "Action Generator: " << actionGenerator.toString() << std::endl;
     std::cout << "Wins: " << wins << ", Losses: " << losses << ", Winrate: " << (wins / static_cast<double>(wins + losses)) << ", Total Levels: " << levels << ", Average Level: " << (levels / static_cast<double>(numGames)) << ", Max Level: " << maxLevel << std::endl;
     std::cout << "Time taken: " << (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - timer).count() / 1000.0) << "s" << std::endl;
 	std::cout << "Average time per game: " << (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - timer).count()) / (double) numGames << "ms" << std::endl;
     std::cout << "Exact action count: " << actions << std::endl;
+    std::cout << "===========================================================================" << std::endl << std::endl;
     return maxLevel;
 }
 
@@ -380,11 +426,15 @@ int main(int argc, char *argv[]) {
     initializeLibraries();
 
     RandomActor randomActor;
-    TrialActor trialActor(500);
-    MCTS mcts(5000, 1.414, -0.0, 0.5, 0); // nSims, K, alpha, beta, progressBar
+    HeuristicActor heuristicActor;
+    TrialActor trialActor(100);
+    TriristicActor triristicActor(100);
+    MCTS mcts(1000, 1.414, -0.0, 0.5, 0); // nSims, K, alpha, beta, progressBar
+    // mcts(5000, 1.414, -0.0, 0.5, 0); // with BASE MCTS select, not SPW
 
     // State state = initial();
     // State state = genState({LUDUS, LEADER, VALKYRIE, MEDIC, ARTIFICER}, {WARCHIEF}, {std::array<int, 5>{0, 0, 0, 0, 0}});
+    State state = genState({RANGER, CAPTAIN, PILGRIM, FATE, CHRONOS}, {QUARTZ, BASALT, QUARTZ}, {std::array<int, 5>{1, 3, 4, 0, 2}}, {std::vector<int>{3, 1, 2}}); // a hard fight
     // state.players[1]->dead = true;
     // state.players[2]->dead = true;
     // state.players[3]->dead = true;
@@ -434,13 +484,18 @@ int main(int argc, char *argv[]) {
     // std::cout << "State map size: " << stateMap.size() << "with stateMap[State] = " << stateMap[q] << std::endl;
 
     // return 0;
-    int numGames = 5;
-    rand();
+    int numGames = 100;
+    // rand();
     std::cout << "Playing " << numGames << " games..." << std::endl;
-	State state = initial();
-    playGame(mcts, &state);
-    //playManyGamesRandomly(mcts, numGames, 2);
-    //playManyGamesRandomly(trialActor, numGames, 2);
+	// State state = initial();
+    // playGame(mcts, &state);
+    State init = initial();
+    playGame(heuristicActor, &init);
+    // playManyGamesRandomly(mcts, numGames, 1);
+    // playManyGamesRandomly(triristicActor, numGames, 1);
+    // playManyGamesRandomly(heuristicActor, numGames, 1);
+    // playManyGamesRandomly(trialActor, numGames, 1);
+    // playManyGamesRandomly(randomActor, numGames, 1);
 
 
     return 0;

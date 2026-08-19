@@ -14,4 +14,5 @@ class RandomActor : public ActionGenerator {
 public:
     RandomActor() = default;
     int generateAction(State& state) override;
+    std::string toString(int detail=0) override;
 };

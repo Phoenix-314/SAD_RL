@@ -1,4 +1,4 @@
-#include "trialActor.h"
+#include "triristicActor.h"
 
 #include <algorithm>
 #include <iostream>
@@ -7,10 +7,10 @@
 #include "validActions.h"
 #include "util.h"
 
-#include "randomActor.h"
+#include "heuristicActor.h"
 
-int TrialActor::generateAction(State& state) {
-    // std::cout<< "TrialActor: Generating action for state with level: " << state.level << std::endl;
+int TriristicActor::generateAction(State& state) {
+    // std::cout<< "TriristicActor: Generating action for state with level: " << state.level << std::endl;
     lastTrials.clear();
     std::vector<int> validActionsList = validActions::validActionsFast(state);
 
@@ -29,9 +29,9 @@ int TrialActor::generateAction(State& state) {
     return bestAction;
 }
 
-int TrialActor::_evaluateAction(State& state, int action, int numSims) {
+int TriristicActor::_evaluateAction(State& state, int action, int numSims) {
     int netSuccesses = 0;
-    RandomActor randomActor;
+    HeuristicActor heuristicActor;
     for (int i = 0; i < numSims; i++) {
         State simState = state;
         transition(simState, action); // Apply given action
@@ -39,16 +39,16 @@ int TrialActor::_evaluateAction(State& state, int action, int numSims) {
         // Complete remaining rollout with random actions
         int antiInfiniteChecker = 0;
         while (isFightEnd(simState) == 0) {
-            int act = randomActor.generateAction(simState);
+            int act = heuristicActor.generateAction(simState);
             transition(simState, act);
             
             antiInfiniteChecker += 1;
             if (antiInfiniteChecker > 10000) {
-                std::cout << "Error: Infinite loop detected in TrialActor::_evaluateAction" << std::endl;
+                std::cout << "Error: Infinite loop detected in TriristicActor::_evaluateAction" << std::endl;
                 std::cout << "State: " << std::endl;
                 util::printState(simState, true);
                 std::cout << "EndInitialPrintState: " << std::endl << std::endl << std::endl << std::endl;
-                throw std::runtime_error("Infinite loop detected in TrialActor::_evaluateAction");
+                throw std::runtime_error("Infinite loop detected in TriristicActor::_evaluateAction");
             }
         }
         
@@ -60,9 +60,9 @@ int TrialActor::_evaluateAction(State& state, int action, int numSims) {
     return netSuccesses;
 }
 
-std::string TrialActor::toString(int detail) {
+std::string TriristicActor::toString(int detail) {
     std::string ret;
-    ret = "TrialActor: simNum=" + std::to_string(simNum) + "\n";
+    ret = "TriristicActor: simNum=" + std::to_string(simNum) + "\n";
     if (detail > 0) {
         ret += "lastTrials=[\n";
         for (int i=0; i < lastTrials.size(); i++) {

@@ -43,3 +43,7 @@ int RandomActor::generateAction(State& state) {
     }
     return act;
 }
+
+std::string RandomActor::toString(int detail) {
+    return "RandomActor";
+}

@@ -8,12 +8,13 @@
 #include "transitions.h"
 #include "actionGenerator.h"
 #include "randomActor.h"
+#include "heuristicActor.h"
 
 
 class MCTS : public ActionGenerator {
 public:
     int nSims;
-    RandomActor rolloutPolicy;
+    HeuristicActor rolloutPolicy;
     double K;
     std::unique_ptr<DecisionNode> root;
     State initialState;

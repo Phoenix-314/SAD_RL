@@ -9,18 +9,14 @@ game by a fraction of a percent.
 Completed Progress:
 1) Implemented a simplified python environment of SAD and verified it is (mostly) faithful.
 - Switch code to C++ for performance improvements. After some research, I determined cython would be ineffective for this project.
+- Use profiling to enhance the speed of the environment.
 
 Current Task:
-- Use profiling to enhance the speed of the environment.
+2) Implement RL agent to play my environment with extremely high consistency.
+Current plan is to use MCTS with DPW and a transposition table. Currently implementing an improved rollout policy (could also implement a evaluation function instead).
 
 Future Plans:
 
-2) Implement RL agent to play my environment with extremely high consistency.
-Current plan is to use MCTS with DPW and a transposition table. I expect MCTS to be an effective choice
-since the value function of this game has many sharp edges due to breakpoints. DPW is needed due to the relatively
-large action space (up to 200 actions) and the stochastic nature of the environment. A transposition table will
-be extremely effective for particular states, such as the points between turns and fights where many different simulations
-will converge to the same state.
 
 3) Implement the full version of SAD, including modifiers and items.
 I may need to improve the efficiency of the RL agent around this time based on performance, since the full version of SAD
