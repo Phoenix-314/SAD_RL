@@ -2,7 +2,7 @@
 
 #include "util.h"
 
-DecisionNode::DecisionNode(State state, RandomNode* father, bool isRoot, bool isFinal) : state(state), isFinal(isFinal), visits(0), father(father), isRoot(isRoot) {}
+DecisionNode::DecisionNode(State state, RandomNode* father, bool isRoot, bool isFinal) : state(state), isFinal(isFinal), visits(0), father(father), isRoot(isRoot), filledActions(false) {}
 
 void DecisionNode::addChildren(std::unique_ptr<RandomNode> randomNode) {
     children[randomNode->action] = std::move(randomNode);

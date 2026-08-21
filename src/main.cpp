@@ -83,7 +83,7 @@ void saveFile(const State& state, int i) {
     }
 }
 
-State runInputCycle(Render& renderer, const State& oldState, const State& ancientState, ActionGenerator& actionGenerator) {
+State runInputCycle(Render& renderer, const State& oldState, const State& ancientState, MCTS& actionGenerator) {
     /*
     Updates pygame display and reads from pygame console input. (If actionGenerator is provided, empty console input will be filled with actions from the generator)
     Returns the new state after executing the action, or returns the old state if the input was invalid.
@@ -161,48 +161,66 @@ State runInputCycle(Render& renderer, const State& oldState, const State& ancien
             return ancientState;
         } else if (x[0] == 'x') {
             // exec(x[1:]) // Local testing program - arbitrary code execution is harder in cpp
-			std::cout << actionGenerator.toString(int(x[1] - '0')) << std::endl;
-        } else if (x[0] == 'y') {
-            // std::unordered_map<State, int, boost::hash<State>> stateMap;
-            // int countVisits = 0;
-            // int countUniqueStates = 0;
-            // int countTotal = 0;
-            // for (const auto& [act1, randNodeUPtr1] : actionGenerator.root->children) {
-            //     int countUniqueStatesBefore = (int) stateMap.size();
-            //     int numNonUniqueStatesBefore = countTotal;
-            //     for (const auto& [state1, decNodeUPtr1] : randNodeUPtr1->children) {
-            //         stateMap[state1]++;
-            //         countTotal++;
-            //         countVisits += decNodeUPtr1->visits;
-            //         for (const auto& [act2, randNodeUPtr2] : decNodeUPtr1->children) {
-            //             for (const auto& [state2, decNodeUPtr2] : randNodeUPtr2->children) {
-            //             }
-            //         }
-            //     }
-            //     std::cout << stateMap.size() - countUniqueStatesBefore << " unique states found for action " << util::getActionStr(act1) << " and ";
-            //     std::cout << countTotal - numNonUniqueStatesBefore << " non-unique states found for action " << util::getActionStr(act1) << std::endl;
-            // }
-            // std::cout << "Unique states: " << stateMap.size() << ", Total states: " << countTotal << ", Total visits: " << countVisits << std::endl;
+            if (x[1] == 'x') {
+                std::cout << actionGenerator.root->children[int(x[2] - '0') * 100 + int(x[3] - '0') * 10 + int(x[4] - '0')]->toString(int(x[6] - '0')) << std::endl;
+            } else {
 
-            // int maxTreeDepth = 0;
-            // int totalTreeDepth = 0;
-            // int numLeaves = 0;
-            // std::function<void(DecisionNode*, int)> traverseTree = [&](DecisionNode* node, int depth) {
-            //     if (node->children.empty()) {
-            //         maxTreeDepth = std::max(maxTreeDepth, depth);
-            //         totalTreeDepth += depth;
-            //         numLeaves++;
-            //     } else {
-            //         for (const auto& [act, randNodeUPtr] : node->children) {
-            //             for (const auto& [state, decNodeUPtr] : randNodeUPtr->children) {
-            //                 traverseTree(decNodeUPtr.get(), depth + 1);
-            //             }
-            //         }
-            //     }
-            // };
-            // traverseTree(actionGenerator.root.get(), 0);
-            // std::cout << "Max tree depth: " << maxTreeDepth << ", Average tree depth: " << (numLeaves > 0 ? static_cast<double>(totalTreeDepth) / numLeaves : 0) << std::endl;
-            // return oldState;
+                std::cout << actionGenerator.toString(int(x[1] - '0')) << std::endl;
+            }
+        } else if (x[0] == 'y') {
+            std::unordered_map<State, int, boost::hash<State>> stateMap;
+            int countVisits = 0;
+            int countUniqueStates = 0;
+            int countTotal = 0;
+            for (const auto& [act1, randNodeUPtr1] : actionGenerator.root->children) {
+                int countUniqueStatesBefore = (int) stateMap.size();
+                int numNonUniqueStatesBefore = countTotal;
+                for (const auto& [state1, decNodeUPtr1] : randNodeUPtr1->children) {
+                    stateMap[state1]++;
+                    countTotal++;
+                    countVisits += decNodeUPtr1->visits;
+                    for (const auto& [act2, randNodeUPtr2] : decNodeUPtr1->children) {
+                        for (const auto& [state2, decNodeUPtr2] : randNodeUPtr2->children) {
+                        }
+                    }
+                }
+                std::cout << stateMap.size() - countUniqueStatesBefore << " unique states found for action " << util::getActionStr(act1) << " and ";
+                std::cout << countTotal - numNonUniqueStatesBefore << " non-unique states found for action " << util::getActionStr(act1) << std::endl;
+            }
+            std::cout << "Unique states: " << stateMap.size() << ", Total states: " << countTotal << ", Total visits: " << countVisits << std::endl;
+
+            int maxTreeDepth = 0;
+            int totalTreeDepth = 0;
+            int numLeaves = 0;
+            std::function<void(DecisionNode*, int)> traverseTree = [&](DecisionNode* node, int depth) {
+                if (node->children.empty()) {
+                    maxTreeDepth = std::max(maxTreeDepth, depth);
+                    totalTreeDepth += depth;
+                    numLeaves++;
+                } else {
+                    for (const auto& [act, randNodeUPtr] : node->children) {
+                        for (const auto& [state, decNodeUPtr] : randNodeUPtr->children) {
+                            traverseTree(decNodeUPtr.get(), depth + 1);
+                        }
+                    }
+                }
+            };
+            traverseTree(actionGenerator.root.get(), 0);
+            std::cout << "Max tree depth: " << maxTreeDepth << ", Average tree depth: " << (numLeaves > 0 ? static_cast<double>(totalTreeDepth) / numLeaves : 0) << std::endl;
+            
+            for (unsigned int i = 0; i < actionGenerator.transpositionTable.size(); i++) {
+                int numUniqueStates = 0;
+                int numEvals = 0;
+                for (const auto& [state, rewardVisits] : actionGenerator.transpositionTable[i]) {
+                    numUniqueStates++;
+                    numEvals += rewardVisits.second;    
+                }
+                if (numUniqueStates != actionGenerator.transpositionTable[i].size()) {
+                    throw std::runtime_error("Mismatch between transpositionTableCumulatives and transpositionTableVisits sizes at index " + std::to_string(i));
+                }
+                std::cout << "Turn " << (i + 1) << ": " << actionGenerator.transpositionTable[i].size() << " unique states, averageVisits: " << (numUniqueStates > 0 ? static_cast<double>(numEvals) / numUniqueStates : 0) << std::endl;
+            }
+            return oldState;
         } else {
             int action = -1;
             std::pair<int, int> data = {0, 0};
@@ -301,7 +319,7 @@ std::pair<State, int> loadState() {
     }
 }
 
-int playGame(ActionGenerator& actionGenerator, State* statePtr=nullptr) {
+int playGame(MCTS& actionGenerator, State* statePtr=nullptr) {
     /*
     Allows user to play game with console input in a pygame window. Saves all non-error states. 
     If a state has been saved, that state will be loaded when restarting. Else, starts a new state
@@ -429,12 +447,12 @@ int main(int argc, char *argv[]) {
     HeuristicActor heuristicActor;
     TrialActor trialActor(100);
     TriristicActor triristicActor(100);
-    MCTS mcts(1000, 1.414, -0.0, 0.5, 0); // nSims, K, alpha, beta, progressBar
+    MCTS mcts(50000, 0.4, 0.5, 0.5, 0); // nSims, K, alpha, beta, progressBar
     // mcts(5000, 1.414, -0.0, 0.5, 0); // with BASE MCTS select, not SPW
 
     // State state = initial();
-    // State state = genState({LUDUS, LEADER, VALKYRIE, MEDIC, ARTIFICER}, {WARCHIEF}, {std::array<int, 5>{0, 0, 0, 0, 0}});
     State state = genState({RANGER, CAPTAIN, PILGRIM, FATE, CHRONOS}, {QUARTZ, BASALT, QUARTZ}, {std::array<int, 5>{1, 3, 4, 0, 2}}, {std::vector<int>{3, 1, 2}}); // a hard fight
+    // State state = genState({LUDUS, LEADER, VALKYRIE, MEDIC, ARTIFICER}, {WARCHIEF}, {std::array<int, 5>{0, 0, 0, 0, 0}});
     // state.players[1]->dead = true;
     // state.players[2]->dead = true;
     // state.players[3]->dead = true;
@@ -450,47 +468,17 @@ int main(int argc, char *argv[]) {
     // trialActor.generateAction(state);
     // playGame(randomActor, &state);
     // return 0;
-    //std::unordered_map<State, int> stateMap;
-
-    // State s = initial();
-    // Ent e = *s.enemies[0];
-    // std::cout << boost::hash<Ent>()(e) << std::endl;
-    // std::unordered_map<Ent, int, boost::hash<Ent>> entMap;
-    // entMap[e] = 1;
-    // e.hp -= 1;
-    // std::cout << boost::hash<Ent>()(e) << std::endl;
-    // entMap[e] = 2;
-    // e.hp -= 1;
-    // std::cout << boost::hash<Ent>()(e) << std::endl;
-    // entMap[e] = 3;
-    // e.hp += 1;
-    // std::cout << boost::hash<Ent>()(e) << std::endl;
-    // std::cout << "Ent map size: " << entMap.size() << "with entMap[Ent] = " << entMap[e] << std::endl;
-
-    // std::unordered_map<State, int, boost::hash<State>> stateMap;
-    // State q = initial();
-    // std::cout << (q == q) << std::endl;
-    // std::cout << boost::hash<State>()(q) << std::endl;
-    // stateMap[q] = 1;
-    // q.players[0]->hp -= 1;
-    // std::cout << boost::hash<State>()(q) << std::endl;
-    // stateMap[q] = 2;
-    // q.players[2]->redirectTarget = q.players[4];
-    // std::cout << boost::hash<State>()(q) << std::endl;
-    // stateMap[q] = 3;
-    // q.players[2]->redirectTarget = nullptr;
-    // q.players[0]->hp += 1;
-    // std::cout << boost::hash<State>()(q) << std::endl;
-    // std::cout << "State map size: " << stateMap.size() << "with stateMap[State] = " << stateMap[q] << std::endl;
-
+    
     // return 0;
     int numGames = 100;
     // rand();
     std::cout << "Playing " << numGames << " games..." << std::endl;
 	// State state = initial();
-    // playGame(mcts, &state);
-    State init = initial();
-    playGame(heuristicActor, &init);
+	int v = mcts.generateAction(state);
+    std::cout << v << std::endl;
+    //playGame(mcts, &state);
+    // State init = initial();
+    // playGame(heuristicActor, &init);
     // playManyGamesRandomly(mcts, numGames, 1);
     // playManyGamesRandomly(triristicActor, numGames, 1);
     // playManyGamesRandomly(heuristicActor, numGames, 1);

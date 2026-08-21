@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <utility>
 
 #include "decisionNode.h"
 #include "randomNode.h"
@@ -22,6 +23,10 @@ public:
     double alpha;
     double beta;
 
+    std::vector<std::unordered_map<State, std::pair<double, int>, boost::hash<State>>> transpositionTable; 
+        // transpositionTable[i] represents the expected q value and number of visits for a particular EMPTY_TURN state on turn i (i+1, since turns are 1-indexed)
+
+
     int progressBar;
 
     MCTS(int nSims, double K, double alpha, double beta, int progressBar=0);
@@ -38,4 +43,7 @@ public:
     std::string toString(int maxDepth=5);
 
     int generateAction(State& state);
+
+
+
 };

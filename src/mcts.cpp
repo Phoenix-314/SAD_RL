@@ -52,7 +52,13 @@ double MCTS::evaluate(State state) {
     int maxItr = 400;
     int itr = 0;
 
+    bool hasFoundTranspositionTableEntry = false;
+    State transpositionTableState;
     while (isFightEnd(state) == 0) {
+        if (state.stateType == StateType::EMPTY_TURN && !hasFoundTranspositionTableEntry) {
+            hasFoundTranspositionTableEntry = true;
+            transpositionTableState = state;
+        }
         itr += 1;
 
         int a = rolloutPolicy.generateAction(state);
@@ -64,7 +70,20 @@ double MCTS::evaluate(State state) {
         }
     }
 
-    return isFightEnd(state) == 1;
+    int reward = isFightEnd(state) == 1 ? 1 : 0;
+    if (hasFoundTranspositionTableEntry) {
+        int turnIdx = transpositionTableState.turn - 2; // turnIdx is 0-indexed, not 1-indexed, so -1. Also, EMPTY_TURN has already incremented turn by 1, so -1 again.
+        std::size_t hashValue = boost::hash<State>()(transpositionTableState);
+        if (turnIdx >= transpositionTable.size()) {
+            transpositionTable.resize(turnIdx + 1);
+        }
+        auto& tmp = transpositionTable[turnIdx][transpositionTableState];
+        tmp.first += reward;
+        tmp.second += 1;
+        return tmp.first / tmp.second; // return more accurate q value
+    }
+
+    return isFightEnd(state) == 1; // if no entry, just use the current rollout. This happens near the end of the game, so variance should be small anyway.
 }
 
 State MCTS::selectOutcome(State state, RandomNode& randomNode) {
@@ -95,27 +114,31 @@ double MCTS::UCTval(const RandomNode& randomNode) {
 
 int MCTS::select(DecisionNode& decisionNode) {
     // SPW Select algorithm
-    // int a=0;
-    // if (std::pow(decisionNode.visits, alpha) >= decisionNode.children.size()) {
-    //     auto vactions = validActions::validActionsFast(decisionNode.state);
-    //     a = vactions[std::rand() % vactions.size()];
-    // } else {
-    //     a = std::max_element(decisionNode.children.begin(), decisionNode.children.end(), [this](const auto& a, const auto& b) { return this->UCTval(*a.second) < this->UCTval(*b.second); })->first;
-    // }
-    // return a;
+    int a=0;
+    if (!decisionNode.filledActions && std::pow(decisionNode.visits, alpha) >= decisionNode.children.size()) {
+        auto vactions = validActions::validActionsFast(decisionNode.state);
+        
+        if (vactions.size() == decisionNode.children.size()) { // As soon as all valid actions actions have been added to children map, only use UCT from then on
+            decisionNode.filledActions = true;
+        }
+        a = vactions[std::rand() % vactions.size()];
+    } else {
+        a = std::max_element(decisionNode.children.begin(), decisionNode.children.end(), [this](const auto& a, const auto& b) { return this->UCTval(*a.second) < this->UCTval(*b.second); })->first;
+    }
+    return a;
 
     // Base MCTS select algorithm
-    if (decisionNode.visits <= 2) {
-        std::vector<int> validActionsList = validActions::validActionsFast(decisionNode.state);
-        if (decisionNode.children.size() != 0) {
-            throw std::runtime_error("MCTS::select: decisionNode already has children when it should not have yet generated the children (since visists <= 2)");
-        }
-        for (int a : validActionsList) {
-            decisionNode.addChildren(std::make_unique<RandomNode>(a, &decisionNode));
-        }
-    }
-    int a = std::max_element(decisionNode.children.begin(), decisionNode.children.end(), [this](const auto& a, const auto& b) { return this->UCTval(*a.second) < this->UCTval(*b.second); })->first;
-    return a;
+    // if (decisionNode.visits <= 2) {
+    //     std::vector<int> validActionsList = validActions::validActionsFast(decisionNode.state);
+    //     if (decisionNode.children.size() != 0) {
+    //         throw std::runtime_error("MCTS::select: decisionNode already has children when it should not have yet generated the children (since visists <= 2)");
+    //     }
+    //     for (int a : validActionsList) {
+    //         decisionNode.addChildren(std::make_unique<RandomNode>(a, &decisionNode));
+    //     }
+    // }
+    // int a = std::max_element(decisionNode.children.begin(), decisionNode.children.end(), [this](const auto& a, const auto& b) { return this->UCTval(*a.second) < this->UCTval(*b.second); })->first;
+    // return a;
 }
 
 
@@ -132,7 +155,7 @@ int MCTS::bestAction() {
 }
 
 void MCTS::learn(int Nsim, int progressBar) {
-
+    transpositionTable.clear();
     for (int i = 0; i < Nsim; i++) {
         if (progressBar >= 2 && i % (std::max(Nsim / 345, 1)) == 0) {
             std::cout << "MCTS Learning: " << i << "/" << Nsim << "                                \r";

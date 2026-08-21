@@ -9,7 +9,3 @@ class SAD_CPP_Recipe(ConanFile):
         self.requires("sdl/2.32.10")
         self.requires("sdl_image/2.8.12")
         self.requires("sdl_ttf/2.24.0")
-        # self.requires("spdlog/1.17.0")
-        # self.requires("sdl_image/3.4.4")
-        # self.requires("sdl_ttf/3.2.2")
-        # self.requires("sdl/3.4.8")
