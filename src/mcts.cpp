@@ -4,47 +4,77 @@
 
 #include <iostream>
 
-MCTS::MCTS(int nSims, double K, double alpha, double beta, int progressBar) : nSims(nSims), K(K), root(std::make_unique<DecisionNode>(State(), nullptr, true)), initialState(State()), alpha(alpha), beta(beta), progressBar(progressBar) {}
+MCTS::MCTS(int nSims, double K, double alpha, double beta, int progressBar) : nSims(nSims), K(K), root(nullptr), initialState(State()), alpha(alpha), beta(beta), progressBar(progressBar) {}
 
-std::unique_ptr<DecisionNode>& MCTS::updateDecisionNode(State decisionNodeState, RandomNode& randomNode) {
-    if (randomNode.children.count(decisionNodeState) == 0) {
-        auto decisionNode = std::make_unique<DecisionNode>(decisionNodeState, &randomNode, false, isFightEnd(decisionNodeState) != 0);
-        return randomNode.addChildren(std::move(decisionNode));
+// std::unique_ptr<DecisionNode>& MCTS::updateDecisionNode(State decisionNodeState, RandomNode& randomNode) {
+//     if (randomNode.children.count(decisionNodeState) == 0) {
+//         auto decisionNode = std::make_unique<DecisionNode>(decisionNodeState, &randomNode, false, isFightEnd(decisionNodeState) != 0);
+//         return randomNode.addChildren(std::move(decisionNode));
+//     } else {
+//         return randomNode.children[decisionNodeState];
+//     }
+// }
+
+DecisionNode* MCTS::selectOutcomeAndUpdateDecisionNode(State state, RandomNode& randomNode) {
+    // DPW SelectOutcome algorithm
+    if (std::pow(randomNode.visits, beta) >= randomNode.children.size()) {
+        transition(state, randomNode.action);
+        auto it = transpositionTable.find(state);
+        if (it == transpositionTable.end()) {
+            auto decisionNode = std::make_unique<DecisionNode>(state, &randomNode, false, isFightEnd(state) != 0);
+            it = transpositionTable.emplace(state, std::move(decisionNode)).first;
+        }
+        randomNode.addChildren(it->second.get());
+        return it->second.get();
     } else {
-        return randomNode.children[decisionNodeState];
+        int randIndex = std::rand() % randomNode.children.size(); // Randomly select pre-existing state
+        auto x = randomNode.children[randIndex];
+        return x;
     }
+    // Base MCTS selectOutcome algorithm
+    // transition(state, randomNode.action);
+    // return state;
+    
 }
 
 void MCTS::grow_tree() {
-    DecisionNode* decisionNodePtr = root.get();
+    DecisionNode* decisionNodePtr = root;
     State state = initialState;
     
+    std::vector<DecisionNode*> decisionNodePath;
+    std::vector<RandomNode*> randomNodePath;
     while (!decisionNodePtr->isFinal && decisionNodePtr->visits > 1) {
 
         int a = select(*decisionNodePtr);
 
         RandomNode& newRandomNode = decisionNodePtr->nextRandomNode(a);
 
-        state = selectOutcome(state, newRandomNode);
-        // double r = isFightEnd(state);
+        // state = selectOutcome(state, newRandomNode);
+        // decisionNodePtr = updateDecisionNode(state, newRandomNode).get();
 
-        decisionNodePtr = updateDecisionNode(state, newRandomNode).get();
+        randomNodePath.push_back(&newRandomNode);
+        decisionNodePath.push_back(decisionNodePtr);
 
-        // decisionNodePtr->reward = r;
-        // newRandomNode.reward = r;
+        DecisionNode* prevDecisionNodePtr = decisionNodePtr; // for updating visit count
+        decisionNodePtr = selectOutcomeAndUpdateDecisionNode(state, newRandomNode);
+        state = decisionNodePtr->state;
+
+        // std::exit(500); // TODO - Fix the infinite loop potential if a random node has only 1 outcome and that outcome is its own father
+        // TODO - Fix the infinite loop potential if a random node has only 1 outcome and that outcome is its own father
+
+        newRandomNode.visits += 1; // Updates are done online to prevent infinite loops if a random node has only 1 outcome and that outcome is its own father
+        prevDecisionNodePtr->visits += 1; // However, updates are done after decisions are made to avoid interrupting standard behavior
     }
 
-    decisionNodePtr->visits += 1;
-    // double cumulativeReward = evaluate(decisionNodePtr->state);
+    decisionNodePtr->visits += 1; // last decisionNodePtr is not updated as a "prevDecisionNodePtr"
     double reward = evaluate(decisionNodePtr->state);
 
-    while (!decisionNodePtr->isRoot) {
-        RandomNode& randNode = *decisionNodePtr->father;
-        // cumulativeReward += randNode.reward;
-        randNode.cumulativeReward += reward; // cumulativeReward;
-        randNode.visits += 1;
-        decisionNodePtr = randNode.father;
-        decisionNodePtr->visits += 1;
+    for (const auto& randomNodePtr : randomNodePath) {
+        randomNodePtr->cumulativeReward += reward; // cumulativeReward;
+        // randomNodePtr->visits += 1;
+    }
+    for (const auto& decisionNodePtr : decisionNodePath) {
+        // decisionNodePtr->visits += 1;
     }
 }
 
@@ -74,10 +104,10 @@ double MCTS::evaluate(State state) {
     if (hasFoundTranspositionTableEntry) {
         int turnIdx = transpositionTableState.turn - 2; // turnIdx is 0-indexed, not 1-indexed, so -1. Also, EMPTY_TURN has already incremented turn by 1, so -1 again.
         std::size_t hashValue = boost::hash<State>()(transpositionTableState);
-        if (turnIdx >= transpositionTable.size()) {
-            transpositionTable.resize(turnIdx + 1);
+        if (turnIdx >= endTurnTranspositionTable.size()) {
+            endTurnTranspositionTable.resize(turnIdx + 1);
         }
-        auto& tmp = transpositionTable[turnIdx][transpositionTableState];
+        auto& tmp = endTurnTranspositionTable[turnIdx][transpositionTableState];
         tmp.first += reward;
         tmp.second += 1;
         return tmp.first / tmp.second; // return more accurate q value
@@ -86,30 +116,30 @@ double MCTS::evaluate(State state) {
     return isFightEnd(state) == 1; // if no entry, just use the current rollout. This happens near the end of the game, so variance should be small anyway.
 }
 
-State MCTS::selectOutcome(State state, RandomNode& randomNode) {
-    // DPW SelectOutcome algorithm
+// State MCTS::selectOutcome(State state, RandomNode& randomNode) {
+//     // DPW SelectOutcome algorithm
 
 
-    if (std::pow(randomNode.visits, beta) >= randomNode.children.size()) {
-        transition(state, randomNode.action);
-        return state;
-    } else {
-        int randIndex = std::rand() % randomNode.children.size(); // Randomly select pre-existing state
-        auto x = randomNode.children.begin();
-        std::advance(x, randIndex);
-        return x->first;
-    }
+//     if (std::pow(randomNode.visits, beta) >= randomNode.children.size()) {
+//         transition(state, randomNode.action);
+//         return state;
+//     } else {
+//         int randIndex = std::rand() % randomNode.children.size(); // Randomly select pre-existing state
+//         auto x = randomNode.children.begin();
+//         std::advance(x, randIndex);
+//         return x->first;
+//     }
 
-    // Base MCTS selectOutcome algorithm
-    // transition(state, randomNode.action);
-    // return state;
-}
+//     // Base MCTS selectOutcome algorithm
+//     // transition(state, randomNode.action);
+//     // return state;
+// }
 
 double MCTS::UCTval(const RandomNode& randomNode) {
     if (randomNode.visits == 0) {
         return std::numeric_limits<double>::infinity();
     }
-    return (randomNode.cumulativeReward / randomNode.visits) + K * std::sqrt(std::log(randomNode.father->visits) / randomNode.visits);
+    return (randomNode.cumulativeReward / randomNode.visits) + K * std::sqrt(std::log(randomNode.father->visits) / randomNode.visits); // todo
 }
 
 int MCTS::select(DecisionNode& decisionNode) {
@@ -123,7 +153,8 @@ int MCTS::select(DecisionNode& decisionNode) {
         }
         a = vactions[std::rand() % vactions.size()];
     } else {
-        a = std::max_element(decisionNode.children.begin(), decisionNode.children.end(), [this](const auto& a, const auto& b) { return this->UCTval(*a.second) < this->UCTval(*b.second); })->first;
+        a = std::max_element(decisionNode.children.begin(), decisionNode.children.end(), 
+            [this](const auto& a, const auto& b) { return this->UCTval(*a.second) < this->UCTval(*b.second); })->first;
     }
     return a;
 
@@ -155,12 +186,13 @@ int MCTS::bestAction() {
 }
 
 void MCTS::learn(int Nsim, int progressBar) {
-    transpositionTable.clear();
+    endTurnTranspositionTable.clear();
     for (int i = 0; i < Nsim; i++) {
         if (progressBar >= 2 && i % (std::max(Nsim / 345, 1)) == 0) {
             std::cout << "MCTS Learning: " << i << "/" << Nsim << "                                \r";
         }
         grow_tree();
+		//std::cout << toString(15) << std::endl;
     }
     if (progressBar >= 1) {
         if (progressBar >= 2) {
@@ -201,7 +233,9 @@ void MCTS::save(std::string path) {
 
 int MCTS::generateAction(State& state) {
     initialState = state;
-    root = std::make_unique<DecisionNode>(state, nullptr, true);
+    transpositionTable.clear();
+    transpositionTable.emplace(state, std::make_unique<DecisionNode>(state, nullptr, true));
+    root = transpositionTable[state].get();
     learn(nSims, progressBar);
     // std::cout << toString() << std::endl;
     return bestAction();

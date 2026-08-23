@@ -14,14 +14,13 @@ class DecisionNode;
 class RandomNode {
 public:
     int action;
-    std::unordered_map<State, std::unique_ptr<DecisionNode>, boost::hash<State>> children;
+    std::vector<DecisionNode*> children; // Non-owning pointers to the DecisionNodes stored in mcts.transpositionTable
     double cumulativeReward;
     int visits;
-    // double reward;
-    DecisionNode* father;
+    DecisionNode* father; // Non-owning pointer to the DecisionNode that owns this RandomNode
 
     RandomNode(int action, DecisionNode* father);
-    std::unique_ptr<DecisionNode>& addChildren(std::unique_ptr<DecisionNode> decisionNode);
+    void addChildren(DecisionNode* decisionNode); // void since the DecisionNode is owned by mcts.transpositionTable
 
     RandomNode(const RandomNode& other) = delete;
     RandomNode& operator=(const RandomNode& other) = delete; // Nodes in tree should not be copied

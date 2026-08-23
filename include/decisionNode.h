@@ -18,7 +18,6 @@ public:
     bool isFinal;
     int visits;
     // double reward;
-    RandomNode* father;
     bool isRoot;
     bool filledActions; // For SPW, indicates whether all valid actions have been added to the children map. For base MCTS, this is always true (but unused, so variable is unset)
 

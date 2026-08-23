@@ -2,7 +2,7 @@
 
 #include "util.h"
 
-DecisionNode::DecisionNode(State state, RandomNode* father, bool isRoot, bool isFinal) : state(state), isFinal(isFinal), visits(0), father(father), isRoot(isRoot), filledActions(false) {}
+DecisionNode::DecisionNode(State state, RandomNode* father, bool isRoot, bool isFinal) : state(state), isFinal(isFinal), visits(0), isRoot(isRoot), filledActions(false) {}
 
 void DecisionNode::addChildren(std::unique_ptr<RandomNode> randomNode) {
     children[randomNode->action] = std::move(randomNode);
@@ -17,14 +17,23 @@ RandomNode& DecisionNode::nextRandomNode(int action) {
 }
 
 std::string DecisionNode::toString(int depth, int maxDepth) {
-    if (depth > maxDepth) {
-        return "DecisionNode: visits=" + std::to_string(visits) + ", isFinal=" + std::to_string(isFinal) + "\n";
+    double calcedCumulativeReward = 0;
+    for (const auto& [action, randomNode] : children) {
+        calcedCumulativeReward += randomNode->cumulativeReward;
     }
+    double qVal = (visits > 0) ? calcedCumulativeReward / visits : 0;
     std::string ret;
-    ret += "DecisionNode: visits=" + std::to_string(visits) + ", isFinal=" + std::to_string(isFinal) + ", unvisitedActions=[";
+    ret += "DecisionNode: visits=" + std::to_string(visits) + ", isFinal=" + std::to_string(isFinal) + ", Calced CR: " + std::to_string(calcedCumulativeReward) + ", Q: " + std::to_string(qVal);
+    if (depth > maxDepth) {
+        return ret + "\n";
+    }
+    ret += ", unvisitedActions=[";
     for (const auto& [action, randomNode] : children) {
         if (randomNode->visits == 0) { ret += " " + util::getActionStr(action); } // Don't print unvisited nodes
     }
+
+    
+
     ret += "]\n";
     for (const auto& [action, randomNode] : children) {
         if (randomNode->visits == 0) { continue; } // Don't print unvisited nodes
