@@ -150,20 +150,11 @@ void drawCircleOutline(SDL_Renderer* renderer, int centerX, int centerY, int rad
 
 std::filesystem::path pickFontPath()
 {
-    const std::array<std::filesystem::path, 5> candidates{
-        R"(C:\Windows\Fonts\segoeui.ttf)",
-        R"(C:\Windows\Fonts\arial.ttf)",
-        R"(C:\Windows\Fonts\calibri.ttf)",
-        R"(C:\Windows\Fonts\tahoma.ttf)",
-        R"(C:\Windows\Fonts\verdana.ttf)"
-    };
-
-    for (const auto& candidate : candidates) {
-        if (std::filesystem::exists(candidate)) {
-            return candidate;
-        }
+    const std::filesystem::path fontPath = std::filesystem::path(__FILE__).parent_path().parent_path() / "imgs" / "segoeui.ttf";
+    if (std::filesystem::exists(fontPath)) {
+        return fontPath;
     }
-
+    std::cout << "Warning: Font file not found at " << fontPath << ". No fonts can be rendered." << std::endl;
     return {};
 }
 
@@ -194,6 +185,8 @@ Render::Render(std::pair<int, int> size)
     , consoleHistory_()
     , consoleLines_()
 {
+}
+void Render::initialize() {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0) {
         throw std::runtime_error(std::string("SDL_Init failed: ") + std::string(SDL_GetError()));
     }
@@ -218,7 +211,7 @@ Render::Render(std::pair<int, int> size)
     }
 
     SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
-    SDL_SetWindowTitle(window_, "Ent Renderer");
+    SDL_SetWindowTitle(window_, "Slice and Dice - RL");
     SDL_SetRenderDrawColor(renderer_, 255, 220, 220, 255);
     SDL_RenderClear(renderer_);
     SDL_RenderPresent(renderer_);
@@ -459,6 +452,37 @@ std::optional<std::string> Render::getConsoleLine()
     return line;
 }
 
+std::optional<std::string> Render::readConsoleLineNonBlocking(const std::string& prompt, const State* state, bool clearConsole)
+{
+    if (clearConsole) {
+        consolePrompt_ = prompt;
+        consoleBuffer_.clear();
+    }
+
+    if (state != nullptr) {
+        render(*state);
+    }
+
+    SDL_Event event{};
+    while (SDL_PollEvent(&event)) {
+        if (event.type == SDL_QUIT) {
+            return std::nullopt;
+        }
+
+        if (event.type == SDL_KEYDOWN || event.type == SDL_TEXTINPUT) {
+            const std::optional<std::string> result = handleConsoleEvent(event);
+            if (result.has_value()) {
+                return result;
+            }
+        }
+    }
+
+    drawConsoleOverlay();
+    SDL_RenderPresent(renderer_);
+    SDL_Delay(16);
+
+    return std::nullopt;
+}
 std::optional<std::string> Render::readConsoleLine(const std::string& prompt, const State* state)
 {
     consolePrompt_ = prompt;

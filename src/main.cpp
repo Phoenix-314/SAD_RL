@@ -18,7 +18,6 @@
 #include "reversedIDs.h"
 #include "util.h"
 #include "transitions.h"
-#include "render.h"
 #include "factions.h"
 #include "validActions.h"
 
@@ -29,6 +28,11 @@
 #include "triristicActor.h"
 #include "mcts.h"
 
+#include "render.h"
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
 
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
@@ -132,7 +136,7 @@ State runInputCycle(Render& renderer, const State& oldState, const State& ancien
                 return oldState;
             }
             std::array<int, 5> rerollValues;
-            for (int i=0;i<5;i++) { rerollValues[i] = int(x[i+1]); }
+            for (int i=0;i<5;i++) { rerollValues[i] = int(x[i+1] - '0'); }
             rollAllies(state, rerollValues);
             factions::handleSDS(state);
             return state;
@@ -162,7 +166,7 @@ State runInputCycle(Render& renderer, const State& oldState, const State& ancien
         } else if (x[0] == 'x') {
             // exec(x[1:]) // Local testing program - arbitrary code execution is harder in cpp
             if (x[1] == 'x') {
-                std::cout << actionGenerator.root->children[int(x[2] - '0') * 100 + int(x[3] - '0') * 10 + int(x[4] - '0')]->toString(int(x[6] - '0')) << std::endl;
+                std::cout << actionGenerator.root->children[int(x[2] - '0') * 100 + int(x[3] - '0') * 10 + int(x[4] - '0')]->toString(1, int(x[6] - '0')) << std::endl;
             } else {
 
                 std::cout << actionGenerator.toString(int(x[1] - '0')) << std::endl;
@@ -175,12 +179,12 @@ State runInputCycle(Render& renderer, const State& oldState, const State& ancien
             for (const auto& [act1, randNodeUPtr1] : actionGenerator.root->children) {
                 int countUniqueStatesBefore = (int) stateMap.size();
                 int numNonUniqueStatesBefore = countTotal;
-                for (const auto& [state1, decNodeUPtr1] : randNodeUPtr1->children) {
-                    stateMap[state1]++;
+                for (const auto& decNodePtr : randNodeUPtr1->children) {
+                    stateMap[decNodePtr->state]++;
                     countTotal++;
-                    countVisits += decNodeUPtr1->visits;
-                    for (const auto& [act2, randNodeUPtr2] : decNodeUPtr1->children) {
-                        for (const auto& [state2, decNodeUPtr2] : randNodeUPtr2->children) {
+                    countVisits += decNodePtr->visits;
+                    for (const auto& [act2, randNodeUPtr2] : decNodePtr->children) {
+                        for (const auto& decNodePtr2 : randNodeUPtr2->children) {
                         }
                     }
                 }
@@ -193,32 +197,35 @@ State runInputCycle(Render& renderer, const State& oldState, const State& ancien
             int totalTreeDepth = 0;
             int numLeaves = 0;
             std::function<void(DecisionNode*, int)> traverseTree = [&](DecisionNode* node, int depth) {
+                if (depth > 20) {
+                    return;
+                }
                 if (node->children.empty()) {
                     maxTreeDepth = std::max(maxTreeDepth, depth);
                     totalTreeDepth += depth;
                     numLeaves++;
                 } else {
                     for (const auto& [act, randNodeUPtr] : node->children) {
-                        for (const auto& [state, decNodeUPtr] : randNodeUPtr->children) {
-                            traverseTree(decNodeUPtr.get(), depth + 1);
+                        for (const auto& decNodePtr : randNodeUPtr->children) {
+                            traverseTree(decNodePtr, depth + 1);
                         }
                     }
                 }
             };
-            traverseTree(actionGenerator.root.get(), 0);
+            traverseTree(actionGenerator.root, 0);
             std::cout << "Max tree depth: " << maxTreeDepth << ", Average tree depth: " << (numLeaves > 0 ? static_cast<double>(totalTreeDepth) / numLeaves : 0) << std::endl;
             
-            for (unsigned int i = 0; i < actionGenerator.transpositionTable.size(); i++) {
+            for (unsigned int i = 0; i < actionGenerator.endTurnTranspositionTable.size(); i++) {
                 int numUniqueStates = 0;
                 int numEvals = 0;
-                for (const auto& [state, rewardVisits] : actionGenerator.transpositionTable[i]) {
+                for (const auto& [state, rewardVisits] : actionGenerator.endTurnTranspositionTable[i]) {
                     numUniqueStates++;
                     numEvals += rewardVisits.second;    
                 }
-                if (numUniqueStates != actionGenerator.transpositionTable[i].size()) {
+                if (numUniqueStates != actionGenerator.endTurnTranspositionTable[i].size()) {
                     throw std::runtime_error("Mismatch between transpositionTableCumulatives and transpositionTableVisits sizes at index " + std::to_string(i));
                 }
-                std::cout << "Turn " << (i + 1) << ": " << actionGenerator.transpositionTable[i].size() << " unique states, averageVisits: " << (numUniqueStates > 0 ? static_cast<double>(numEvals) / numUniqueStates : 0) << std::endl;
+                std::cout << "Turn " << (i + 1) << ": " << actionGenerator.endTurnTranspositionTable[i].size() << " unique states, averageVisits: " << (numUniqueStates > 0 ? static_cast<double>(numEvals) / numUniqueStates : 0) << std::endl;
             }
             return oldState;
         } else {
@@ -319,6 +326,155 @@ std::pair<State, int> loadState() {
     }
 }
 
+#ifdef __EMSCRIPTEN__
+Render renderer = Render({1920, 1080});
+State state;
+MCTS* actionGenerator;
+bool clearConsole = true;
+void init(MCTS* actionGen, State initialState) {
+    state = initialState;
+    actionGenerator = actionGen;
+}
+void runGameLoop() {
+    std::optional<std::string> line = renderer.readConsoleLineNonBlocking(">>> ", &state, clearConsole);
+    clearConsole = false;
+    
+    if (!line.has_value()) {
+        return; // No input yet, continue the loop
+    } else {
+        clearConsole = true; // Console gets reset since user input has been detected
+    }
+
+    if (line.value().empty()) {
+        try {
+            int act = actionGenerator->generateAction(state);
+            transition(state, act);
+            renderer.addValueToConsoleHistory(util::getActionStr(act));
+            renderer.render(state);
+        }
+        catch (const std::exception& e) {
+            std::cout << e.what() << std::endl;
+            std::cout << "Some error has occurred. Returning oldstate" << std::endl;
+            util::printState(state, true);
+            return;
+        }
+    }
+    try {
+        std::string x = line.value();
+        if (x[0] == 'q') {
+            return; // Empty state indicates to quit
+        } else if (x[0] == 'r') {
+            if (x.length() != 6) {
+                std::cout << "INVALID INPUT. Try again: " << x << std::endl;
+            }
+            std::array<int, 5> rerollValues;
+            for (int i=0;i<5;i++) { rerollValues[i] = int(x[i+1] - '0'); }
+            rollAllies(state, rerollValues);
+            factions::handleSDS(state);
+        } else if (x[0] == 'a') {
+            for (const auto& v : validActions::validActions(state)) {
+                std::cout << util::getActionStr(v) << ", ";
+            }
+            std::cout << std::endl;
+        } else if (x[0] == 's') {
+            if (x.substr(0, 2) == "sa") {
+                util::printEnt(state, *state.players[int(x[2] - '0') - 1]);
+            } else if (x.substr(0, 2) == "se") {
+                util::printEnt(state, *state.enemies[int(x[2] - '0') - 1]);
+            } else {
+                util::printState(state);
+            }
+        } else {
+            int action = -1;
+            std::pair<int, int> data = {0, 0};
+            if (x.substr(0, 2) == "DA") {
+                action = DICE_ALLY_ACTION;
+                if (x[3] == '-') {
+                    data = std::make_pair<int, int>(int(x[2] - '0') - 1, -1);
+                } else {
+                    data = std::make_pair<int, int>(int(x[2] - '0') - 1, int(x[3] - '0') - 1);
+                }
+            } else if (x.substr(0, 2) == "DE") {
+                action = DICE_ENEMY_ACTION;
+                data = std::make_pair<int, int>(int(x[2] - '0') - 1, int(x[3] - '0') - 1);
+            } else if (x.substr(0, 2) == "SA") {
+                action = SPELL_ALLY_ACTION;
+                if (x[3] == '-') {
+                    data = std::make_pair<int,int>(int(x[2]), -1);
+                } else {
+                    data = std::make_pair<int, int>(int(x[2] - '0'), int(x[3] - '0') - 1);
+                }
+            } else if (x.substr(0,2) == "SE") {
+                action = SPELL_ENEMY_ACTION;
+                data = std::make_pair<int, int>(int(x[2] - '0'), int(x[3] - '0') - 1);
+            } else if (x.substr(0,1) == "R") {
+                action = REROLL_ACTION;
+                if (x.length() == 1) {
+                    data = std::make_pair<int, int>(0, 0);
+                } else {
+                    if (x.length() != 6 && x.length() != 2) {
+                        std::cout << "INVALID INPUT. Try again: " << x << std::endl;
+                    }
+                    if (x.length() == 2) {
+                        data = std::make_pair<int, int>(31, 0);
+                    } else {
+                        std::array<bool, 5> boolarray;
+                        for (int i=0;i<5;i++) { boolarray[i] = (x[i+1] == '1'); }
+                        data = std::make_pair<int, int>(util::ba2int<5>(boolarray), 0);
+                    }
+                }
+            } else if (x.substr(0,1) == "E") {
+                if (state.rerolls == 2) { // Auto finishes turn for convenience, if one tries to end turn at the start of a turn
+                    transition(state, actionsReversedIDs.at(std::make_pair(REROLL_ACTION, std::make_pair<int,int>(0, 0))));
+                    transition(state, actionsReversedIDs.at(std::make_pair(REROLL_ACTION, std::make_pair<int,int>(0, 0))));
+                }
+                action = END_TURN_ACTION;
+                data = std::make_pair<int, int>(0, 0);
+            } else if (x.substr(0,1) == "C") {
+                action = CONTINUE_ACTION;
+                data = std::make_pair<int, int>(0, 0);
+            } else {
+                std::cout << "INVALID INPUT. Try again: " << x << std::endl;
+            }
+
+            if (actionsReversedIDs.find(std::make_pair(action, data)) != actionsReversedIDs.end() && validActions::isValidAction(state, actionsReversedIDs.at(std::make_pair(action, data)))) {
+                std::cout << "Executing: " << util::getActionStr(actionsReversedIDs.at(std::make_pair(action, data))) << std::endl;
+                transition(state, actionsReversedIDs.at(std::make_pair(action, data)));
+                renderer.render(state);
+            } else {
+                std::cout << "Illegal Action: " << x << std::endl;
+            }
+        }
+    } catch (const std::exception& e) {
+        std::cout << "Error: " << e.what() << std::endl;
+        std::cout << "Some error has occurred. Returning oldstate" << std::endl;
+        util::printState(state, true);
+        return;
+    }
+
+    if (state.stateType == StateType::WON || state.stateType == StateType::LOST) {
+        std::cout << "Game Over. Result: " << stateTypesReversedIDs.at(state.stateType) << ", Level: " << state.level << std::endl;
+        return;
+    }
+}
+int playGameBrowser(MCTS& actionGenerator, State* statePtr) {
+    /*
+    Allows user to play game with console input in a pygame window. Saves all non-error states. 
+    If a state has been saved, that state will be loaded when restarting. Else, starts a new state
+    If actionGenerator is provided, empty console input will be filled with actions from the generator, allowing for automated play.
+    */
+    std::cout << "Starting browser game" << std::endl;
+    State s = initial();
+    if (statePtr == nullptr) {
+        statePtr = &s;
+    }
+    init(&actionGenerator, *statePtr);
+    renderer.initialize();
+    emscripten_set_main_loop(runGameLoop, 0, 1);
+    return 0;
+}
+#endif
+
 int playGame(MCTS& actionGenerator, State* statePtr=nullptr) {
     /*
     Allows user to play game with console input in a pygame window. Saves all non-error states. 
@@ -326,6 +482,7 @@ int playGame(MCTS& actionGenerator, State* statePtr=nullptr) {
     If actionGenerator is provided, empty console input will be filled with actions from the generator, allowing for automated play.
     */
     Render renderer = Render({1920, 1080});
+    renderer.initialize();
     
     std::pair<State, int> x;
     if (statePtr == nullptr) {
@@ -440,14 +597,14 @@ int playManyGamesRandomly(ActionGenerator& actionGenerator, int numGames=10000, 
 }
 
 int main(int argc, char *argv[]) {
-
+    std::cout << "Starting program..." << std::endl;
     initializeLibraries();
 
     RandomActor randomActor;
     HeuristicActor heuristicActor;
     TrialActor trialActor(100);
     TriristicActor triristicActor(100);
-    MCTS mcts(50000, 0.4, 0.5, 0.5, 0); // nSims, K, alpha, beta, progressBar
+    MCTS mcts(50000, 0.05, 0.4, 0.35, 2); // nSims, K, alpha, beta, progressBar // 200000
     // mcts(5000, 1.414, -0.0, 0.5, 0); // with BASE MCTS select, not SPW
 
     // State state = initial();
@@ -470,13 +627,17 @@ int main(int argc, char *argv[]) {
     // return 0;
     
     // return 0;
+
     int numGames = 100;
-    // rand();
     std::cout << "Playing " << numGames << " games..." << std::endl;
+    //  rand();
+    #ifdef __EMSCRIPTEN__
+    playGameBrowser(mcts, &state);
+    #else
 	// State state = initial();
-	int v = mcts.generateAction(state);
-    std::cout << v << std::endl;
-    //playGame(mcts, &state);
+	//int v = mcts.generateAction(state);
+    //std::cout << v << std::endl;
+    playGame(mcts, &state);
     // State init = initial();
     // playGame(heuristicActor, &init);
     // playManyGamesRandomly(mcts, numGames, 1);
@@ -484,6 +645,7 @@ int main(int argc, char *argv[]) {
     // playManyGamesRandomly(heuristicActor, numGames, 1);
     // playManyGamesRandomly(trialActor, numGames, 1);
     // playManyGamesRandomly(randomActor, numGames, 1);
+    #endif
 
 
     return 0;

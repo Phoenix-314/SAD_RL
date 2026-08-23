@@ -15,6 +15,7 @@ premake5.exe
 # Build output
 /build
 /project
+Makefile
 
 # Python
 /__pycache__/

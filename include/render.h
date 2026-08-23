@@ -19,8 +19,9 @@ union SDL_Event;
 
 class Render {
 public:
-	explicit Render(std::pair<int, int> size = {1920, 1080});
+	explicit Render(std::pair<int, int> size);
 	~Render();
+	void initialize();
 
 	Render(const Render&) = delete;
 	Render& operator=(const Render&) = delete;
@@ -29,6 +30,7 @@ public:
 
 	void render(const State& state);
 	std::optional<std::string> readConsoleLine(const std::string& prompt = ">>> ", const State* state = nullptr);
+	std::optional<std::string> readConsoleLineNonBlocking(const std::string& prompt, const State* state, bool clearConsole = false);
 	void waitForInput();
 	void addValueToConsoleHistory(std::string val);
 

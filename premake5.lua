@@ -1,8 +1,17 @@
-include "dependencies/conandeps.premake5.lua"
+newoption {
+    trigger = "browser",
+    description = "Generate an Emscripten browser build"
+}
+
+local dependency_dir = _OPTIONS["browser"] and "dependencies/emscripten" or "dependencies"
+include(dependency_dir .. "/conandeps.premake5.lua")
 
 workspace "SAD_CPP"
     configurations { "Debug", "Release" }
-    architecture "x64"
+
+    filter "action:vs*"
+        architecture "x64"
+    filter {}
 
     project "SAD_CPP"
         kind "ConsoleApp"
@@ -17,6 +26,21 @@ workspace "SAD_CPP"
         files { "src/**.cpp", "include/**.h" }
         includedirs { "include" }
 
+        filter "options:browser"
+            profile "Off"
+            targetextension ".html"
+            targetdir "build/%{cfg.buildcfg}/browser"
+            toolset "clang"
+            buildoptions { "-pthread" }
+            linkoptions {
+                "-pthread",
+                "-sALLOW_MEMORY_GROWTH=1",
+                "-sSTACK_SIZE=1048576",
+                "-sNO_EXIT_RUNTIME=1",
+                "--preload-file", "../imgs@/imgs",
+            }
+        filter {}
+
         filter "configurations:Debug"
             defines { "DEBUG" }
             symbols "On"
@@ -27,5 +51,16 @@ workspace "SAD_CPP"
             optimize "On"
         filter {}
 
-        conan_setup()
-        linkoptions { "/IGNORE:4099" }
+        if _OPTIONS["browser"] then
+            filter "configurations:Debug"
+                conan_setup("debug_wasm32")
+            filter {}
+            filter "configurations:Release"
+                conan_setup("release_wasm32")
+            filter {}
+        else
+            conan_setup()
+        end
+        if not _OPTIONS["browser"] then
+            linkoptions { "/IGNORE:4099" }
+        end
