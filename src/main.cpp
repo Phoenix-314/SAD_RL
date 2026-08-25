@@ -196,8 +196,15 @@ State runInputCycle(Render& renderer, const State& oldState, const State& ancien
             int maxTreeDepth = 0;
             int totalTreeDepth = 0;
             int numLeaves = 0;
+            std::unordered_map<State, int, boost::hash<State>> seenStates;
             std::function<void(DecisionNode*, int)> traverseTree = [&](DecisionNode* node, int depth) {
+                seenStates[node->state]++;
+                if (seenStates[node->state] > 1) {
+                    return; // Avoid infinite loops in case of cycles
+                }
+
                 if (depth > 20) {
+                    std::cout << "An error has occurred: tree depth exceeded 20. This is likely due to a cycle in the tree. Please check the MCTS implementation." << std::endl;
                     return;
                 }
                 if (node->children.empty()) {
