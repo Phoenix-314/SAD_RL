@@ -179,12 +179,12 @@ State runInputCycle(Render& renderer, const State& oldState, const State& ancien
             for (const auto& [act1, randNodeUPtr1] : actionGenerator.root->children) {
                 int countUniqueStatesBefore = (int) stateMap.size();
                 int numNonUniqueStatesBefore = countTotal;
-                for (const auto& decNodePtr : randNodeUPtr1->children) {
-                    stateMap[decNodePtr->state]++;
+                for (const auto& [state1, decNodeUPtr1] : randNodeUPtr1->children) {
+                    stateMap[state1]++;
                     countTotal++;
-                    countVisits += decNodePtr->visits;
-                    for (const auto& [act2, randNodeUPtr2] : decNodePtr->children) {
-                        for (const auto& decNodePtr2 : randNodeUPtr2->children) {
+                    countVisits += decNodeUPtr1->visits;
+                    for (const auto& [act2, randNodeUPtr2] : decNodeUPtr1->children) {
+                        for (const auto& [state2, decNodeUPtr2] : randNodeUPtr2->children) {
                         }
                     }
                 }
@@ -197,36 +197,20 @@ State runInputCycle(Render& renderer, const State& oldState, const State& ancien
             int totalTreeDepth = 0;
             int numLeaves = 0;
             std::function<void(DecisionNode*, int)> traverseTree = [&](DecisionNode* node, int depth) {
-                if (depth > 20) {
-                    return;
-                }
                 if (node->children.empty()) {
                     maxTreeDepth = std::max(maxTreeDepth, depth);
                     totalTreeDepth += depth;
                     numLeaves++;
                 } else {
                     for (const auto& [act, randNodeUPtr] : node->children) {
-                        for (const auto& decNodePtr : randNodeUPtr->children) {
-                            traverseTree(decNodePtr, depth + 1);
+                        for (const auto& [state, decNodeUPtr] : randNodeUPtr->children) {
+                            traverseTree(decNodeUPtr.get(), depth + 1);
                         }
                     }
                 }
             };
-            traverseTree(actionGenerator.root, 0);
+            traverseTree(actionGenerator.root.get(), 0);
             std::cout << "Max tree depth: " << maxTreeDepth << ", Average tree depth: " << (numLeaves > 0 ? static_cast<double>(totalTreeDepth) / numLeaves : 0) << std::endl;
-            
-            for (unsigned int i = 0; i < actionGenerator.endTurnTranspositionTable.size(); i++) {
-                int numUniqueStates = 0;
-                int numEvals = 0;
-                for (const auto& [state, rewardVisits] : actionGenerator.endTurnTranspositionTable[i]) {
-                    numUniqueStates++;
-                    numEvals += rewardVisits.second;    
-                }
-                if (numUniqueStates != actionGenerator.endTurnTranspositionTable[i].size()) {
-                    throw std::runtime_error("Mismatch between transpositionTableCumulatives and transpositionTableVisits sizes at index " + std::to_string(i));
-                }
-                std::cout << "Turn " << (i + 1) << ": " << actionGenerator.endTurnTranspositionTable[i].size() << " unique states, averageVisits: " << (numUniqueStates > 0 ? static_cast<double>(numEvals) / numUniqueStates : 0) << std::endl;
-            }
             return oldState;
         } else {
             int action = -1;
