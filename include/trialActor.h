@@ -13,11 +13,12 @@
 
 class TrialActor : public ActionGenerator {
 public:
-    TrialActor() : simNum(100) {}
-    TrialActor(int numSims) : simNum(numSims) {} 
+    TrialActor(ActionGenerator* policy) : rolloutPolicy(policy), simNum(100) {}
+    TrialActor(ActionGenerator* policy, int numSims) : rolloutPolicy(policy), simNum(numSims) {} 
     int generateAction(State& state) override;
     std::string toString(int detail=0) override;
 private:
+    ActionGenerator* rolloutPolicy;
     std::vector<std::pair<int, int>> lastTrials;
     int simNum;
     int _evaluateAction(State& state, int action, int numSims);

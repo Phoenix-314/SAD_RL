@@ -31,7 +31,6 @@ int TrialActor::generateAction(State& state) {
 
 int TrialActor::_evaluateAction(State& state, int action, int numSims) {
     int netSuccesses = 0;
-    RandomActor randomActor;
     for (int i = 0; i < numSims; i++) {
         State simState = state;
         transition(simState, action); // Apply given action
@@ -39,7 +38,7 @@ int TrialActor::_evaluateAction(State& state, int action, int numSims) {
         // Complete remaining rollout with random actions
         int antiInfiniteChecker = 0;
         while (isFightEnd(simState) == 0) {
-            int act = randomActor.generateAction(simState);
+            int act = rolloutPolicy->generateAction(simState);
             transition(simState, act);
             
             antiInfiniteChecker += 1;

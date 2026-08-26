@@ -25,7 +25,7 @@
 #include "randomActor.h"
 #include "trialActor.h"
 #include "heuristicActor.h"
-#include "triristicActor.h"
+#include "improvedHeuristicActor.h"
 #include "mcts.h"
 
 #include "render.h"
@@ -87,7 +87,7 @@ void saveFile(const State& state, int i) {
     }
 }
 
-State runInputCycle(Render& renderer, const State& oldState, const State& ancientState, MCTS& actionGenerator) {
+State runInputCycle(Render& renderer, const State& oldState, const State& ancientState, ActionGenerator* actionGenerator) {
     /*
     Updates pygame display and reads from pygame console input. (If actionGenerator is provided, empty console input will be filled with actions from the generator)
     Returns the new state after executing the action, or returns the old state if the input was invalid.
@@ -112,7 +112,7 @@ State runInputCycle(Render& renderer, const State& oldState, const State& ancien
     if (!line.has_value() || line.value().empty()) {
         try {
 
-            int act = actionGenerator.generateAction(state);
+            int act = actionGenerator->generateAction(state);
             transition(state, act);
             renderer.addValueToConsoleHistory(util::getActionStr(act));
             renderer.render(state);
@@ -165,18 +165,31 @@ State runInputCycle(Render& renderer, const State& oldState, const State& ancien
             return ancientState;
         } else if (x[0] == 'x') {
             // exec(x[1:]) // Local testing program - arbitrary code execution is harder in cpp
+            
+            auto mcts = dynamic_cast<MCTS*>(actionGenerator);
+            if (mcts == nullptr) {
+                std::cout << "Action generator is not MCTS. Cannot execute x command." << std::endl;
+                return oldState;
+            }
             if (x[1] == 'x') {
-                std::cout << actionGenerator.root->children[int(x[2] - '0') * 100 + int(x[3] - '0') * 10 + int(x[4] - '0')]->toString(1, int(x[6] - '0')) << std::endl;
+                std::cout << mcts->root->children[int(x[2] - '0') * 100 + int(x[3] - '0') * 10 + int(x[4] - '0')]->toString(1, int(x[6] - '0')) << std::endl;
             } else {
 
-                std::cout << actionGenerator.toString(int(x[1] - '0')) << std::endl;
+                std::cout << mcts->toString(int(x[1] - '0')) << std::endl;
             }
         } else if (x[0] == 'y') {
             std::unordered_map<State, int, boost::hash<State>> stateMap;
             int countVisits = 0;
             int countUniqueStates = 0;
             int countTotal = 0;
-            for (const auto& [act1, randNodeUPtr1] : actionGenerator.root->children) {
+
+            auto mcts = dynamic_cast<MCTS*>(actionGenerator);
+            if (mcts == nullptr) {
+                std::cout << "Action generator is not MCTS. Cannot execute y command." << std::endl;
+                return oldState;
+            }
+
+            for (const auto& [act1, randNodeUPtr1] : mcts->root->children) {
                 int countUniqueStatesBefore = (int) stateMap.size();
                 int numNonUniqueStatesBefore = countTotal;
                 for (const auto& [state1, decNodeUPtr1] : randNodeUPtr1->children) {
@@ -209,8 +222,17 @@ State runInputCycle(Render& renderer, const State& oldState, const State& ancien
                     }
                 }
             };
-            traverseTree(actionGenerator.root.get(), 0);
+            traverseTree(mcts->root.get(), 0);
             std::cout << "Max tree depth: " << maxTreeDepth << ", Average tree depth: " << (numLeaves > 0 ? static_cast<double>(totalTreeDepth) / numLeaves : 0) << std::endl;
+            
+            for (int i = 0; i < mcts->transpositionTable.size(); i++) {
+                int numStates = (int) mcts->transpositionTable[i].size();
+                int totalVisits = 0;
+                for (const auto& [state, pair] : mcts->transpositionTable[i]) {
+                    totalVisits += pair.second;
+                }
+                std::cout << "Turn " << i + 1 << ": " << numStates << " states, " << (numStates > 0 ? static_cast<double>(totalVisits) / numStates : 0) << " visits" << std::endl;
+            }
             return oldState;
         } else {
             int action = -1;
@@ -441,7 +463,7 @@ void runGameLoop() {
         return;
     }
 }
-int playGameBrowser(MCTS& actionGenerator, State* statePtr) {
+int playGameBrowser(ActionGenerator* actionGenerator, State* statePtr) {
     /*
     Allows user to play game with console input in a pygame window. Saves all non-error states. 
     If a state has been saved, that state will be loaded when restarting. Else, starts a new state
@@ -459,7 +481,7 @@ int playGameBrowser(MCTS& actionGenerator, State* statePtr) {
 }
 #endif
 
-int playGame(MCTS& actionGenerator, State* statePtr=nullptr) {
+int playGame(ActionGenerator* actionGenerator, State* statePtr=nullptr) {
     /*
     Allows user to play game with console input in a pygame window. Saves all non-error states. 
     If a state has been saved, that state will be loaded when restarting. Else, starts a new state
@@ -496,7 +518,7 @@ int playGame(MCTS& actionGenerator, State* statePtr=nullptr) {
     }
 }
 
-int playManyGamesRandomly(ActionGenerator& actionGenerator, int numGames=10000, int printProgress=1) {
+int playManyGamesRandomly(ActionGenerator* actionGenerator, int numGames=10000, int printProgress=1) {
     /*
     Does not render anything.
     Plays numGames games with (mostly) random actions, and displays winrate, average level, and the highest level reached.
@@ -541,7 +563,7 @@ int playManyGamesRandomly(ActionGenerator& actionGenerator, int numGames=10000, 
                 }
                 // saveFile(state, -101); // Save state before executing action, for debugging
                 oldState = state;
-                act = actionGenerator.generateAction(state);
+                act = actionGenerator->generateAction(state);
                 actions += 1;
                 transition(state, act);
             } catch (const std::exception& e) {
@@ -571,7 +593,7 @@ int playManyGamesRandomly(ActionGenerator& actionGenerator, int numGames=10000, 
 
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - timer).count() / 1000.0;
     std::cout << "Progress: " << numGames << "/" << numGames << " (" << (numGames / static_cast<double>(numGames) * 100) << "%), Time elapsed: " << elapsed << "s                                                                           " << std::endl;
-	std::cout << "Action Generator: " << actionGenerator.toString() << std::endl;
+	std::cout << "Action Generator: " << actionGenerator->toString() << std::endl;
     std::cout << "Wins: " << wins << ", Losses: " << losses << ", Winrate: " << (wins / static_cast<double>(wins + losses)) << ", Total Levels: " << levels << ", Average Level: " << (levels / static_cast<double>(numGames)) << ", Max Level: " << maxLevel << std::endl;
     std::cout << "Time taken: " << (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - timer).count() / 1000.0) << "s" << std::endl;
 	std::cout << "Average time per game: " << (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - timer).count()) / (double) numGames << "ms" << std::endl;
@@ -586,9 +608,11 @@ int main(int argc, char *argv[]) {
 
     RandomActor randomActor;
     HeuristicActor heuristicActor;
-    TrialActor trialActor(100);
-    TriristicActor triristicActor(100);
-    MCTS mcts(50000, 0.05, 0.4, 0.35, 2); // nSims, K, alpha, beta, progressBar // 200000
+    ImprovedHeuristicActor improvedHeuristicActor;
+    TrialActor trialActor(&randomActor, 100);
+    TrialActor triristicActor(&heuristicActor, 100);
+    TrialActor improvedHeuristicTrialActor(&improvedHeuristicActor, 100);
+    MCTS mcts(200000, 0.05, 0.4, 0.35, 2); // nSims, K, alpha, beta, progressBar // 200000
     // mcts(5000, 1.414, -0.0, 0.5, 0); // with BASE MCTS select, not SPW
 
     // State state = initial();
@@ -612,7 +636,7 @@ int main(int argc, char *argv[]) {
     
     // return 0;
 
-    int numGames = 100;
+    int numGames = 20;
     std::cout << "Playing " << numGames << " games..." << std::endl;
     //  rand();
     #ifdef __EMSCRIPTEN__
@@ -621,14 +645,17 @@ int main(int argc, char *argv[]) {
 	// State state = initial();
 	//int v = mcts.generateAction(state);
     //std::cout << v << std::endl;
-    playGame(mcts, &state);
+    // playGame(&mcts, &state);
     // State init = initial();
-    // playGame(heuristicActor, &init);
+    playGame(&improvedHeuristicActor, &state);
     // playManyGamesRandomly(mcts, numGames, 1);
+
     // playManyGamesRandomly(triristicActor, numGames, 1);
-    // playManyGamesRandomly(heuristicActor, numGames, 1);
+    playManyGamesRandomly(&heuristicActor, numGames * 1000, 1);  //7.679
+    // playManyGamesRandomly(improvedHeuristicTrialActor, numGames, 1);
+    playManyGamesRandomly(&improvedHeuristicActor, numGames * 1000, 1);
     // playManyGamesRandomly(trialActor, numGames, 1);
-    // playManyGamesRandomly(randomActor, numGames, 1);
+    playManyGamesRandomly(&randomActor, numGames * 1000, 1);
     #endif
 
 
