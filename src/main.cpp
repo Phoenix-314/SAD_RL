@@ -25,7 +25,6 @@
 #include "randomActor.h"
 #include "trialActor.h"
 #include "heuristicActor.h"
-#include "improvedHeuristicActor.h"
 #include "mcts.h"
 
 #include "render.h"
@@ -608,10 +607,8 @@ int main(int argc, char *argv[]) {
 
     RandomActor randomActor;
     HeuristicActor heuristicActor;
-    ImprovedHeuristicActor improvedHeuristicActor;
     TrialActor trialActor(&randomActor, 100);
-    TrialActor triristicActor(&heuristicActor, 100);
-    TrialActor improvedHeuristicTrialActor(&improvedHeuristicActor, 100);
+    TrialActor triristicActor(&heuristicActor, 500);
     MCTS mcts(200000, 0.05, 0.4, 0.35, 2); // nSims, K, alpha, beta, progressBar // 200000
     // mcts(5000, 1.414, -0.0, 0.5, 0); // with BASE MCTS select, not SPW
 
@@ -636,7 +633,7 @@ int main(int argc, char *argv[]) {
     
     // return 0;
 
-    int numGames = 20;
+    int numGames = 1;
     std::cout << "Playing " << numGames << " games..." << std::endl;
     //  rand();
     #ifdef __EMSCRIPTEN__
@@ -647,13 +644,11 @@ int main(int argc, char *argv[]) {
     //std::cout << v << std::endl;
     // playGame(&mcts, &state);
     // State init = initial();
-    playGame(&improvedHeuristicActor, &state);
+    // playGame(&heuristicActor, &state);
     // playManyGamesRandomly(mcts, numGames, 1);
 
-    // playManyGamesRandomly(triristicActor, numGames, 1);
+    playManyGamesRandomly(&triristicActor, numGames, 1);
     playManyGamesRandomly(&heuristicActor, numGames * 1000, 1);  //7.679
-    // playManyGamesRandomly(improvedHeuristicTrialActor, numGames, 1);
-    playManyGamesRandomly(&improvedHeuristicActor, numGames * 1000, 1);
     // playManyGamesRandomly(trialActor, numGames, 1);
     playManyGamesRandomly(&randomActor, numGames * 1000, 1);
     #endif

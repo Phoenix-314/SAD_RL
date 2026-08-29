@@ -13,13 +13,15 @@
 
 
 
+
 int HeuristicActor::generateAction(State& state) {
     std::vector<int> validActionsList = validActions::validActionsFast(state);
 
     int act = validActionsList[0];
     int type = ACTION_MAP[act].first;
     std::pair<int, int> params = ACTION_MAP[act].second;
-    
+
+
     if (type == DICE_ALLY_ACTION) {
         if (params.second == -1) { // if the action is untargeted, use it. One has to use it sooner or later
             return act;
@@ -95,10 +97,31 @@ int HeuristicActor::generateAction(State& state) {
                 tempAct = validActionsList[tempIdx];
             }
 
+            int maxPossibleBurst = 2 * (state.mana / 2);
+            for (int i=0;i<5;i++) {
+                if (util::targetIsDying(state, *state.players[i])) { // first, check if burst can kill a target single-targeting a dying ally
+                    int deltaHealth = state.players[i]->hp + state.players[i]->shield - state.players[i]->incomingDamage - state.players[i]->incomingPoison - state.players[i]->poison;
+                    for (int j=0;j<state.enemies.size();j++) {
+                        if (std::find(state.enemyTargets[j].begin(), state.enemyTargets[j].end(), state.players[i]) == state.enemyTargets[j].end()) { 
+                            continue; // if enemy isnt targeting the dying ally
+                        }
+
+                        if (state.enemies[j]->currentSide.value + deltaHealth < 1) { continue; } // if the ally still dies anyway, dont bother
+
+
+                        Ent* target = state.enemies[j];
+                        bool canKill = (target->hp + target->shield) <= maxPossibleBurst;
+                        int possibleAct = 85 + j; // burst action against that enemy
+                        if (canKill && std::find(validActionsList.begin(), validActionsList.end(), possibleAct) != validActionsList.end()) {
+                            return possibleAct;
+                        }
+                    }
+                }
+            }
+
             while (ACTION_MAP[tempAct].second.first == params.first && ACTION_MAP[tempAct].first == SPELL_ENEMY_ACTION) {
                 Ent* target = state.enemies[ACTION_MAP[tempAct].second.second];
-                int maxPossibleBurstDamage = 2 * (state.mana / 2);
-                bool canKill = (target->hp + target->shield) <= maxPossibleBurstDamage;
+                bool canKill = (target->hp + target->shield) <= maxPossibleBurst;
 
                 if (canKill) {
                     return tempAct;
@@ -115,10 +138,9 @@ int HeuristicActor::generateAction(State& state) {
             while (ACTION_MAP[tempAct].second.first == params.first && ACTION_MAP[tempAct].first == SPELL_ALLY_ACTION) {
                 Ent* target = state.players[ACTION_MAP[tempAct].second.second];
                 if (util::targetIsDying(state, *target)) { // if can cast friendly thing to dying ally, do so
-                    int maxPossibleBurstShield = 2 * (state.mana / 2);
-                    target->shield += maxPossibleBurstShield;
+                    target->shield += maxPossibleBurst;
                     bool canSave = !util::targetIsDying(state, *target);
-                    target->shield -= maxPossibleBurstShield; // reset shield to original value
+                    target->shield -= maxPossibleBurst; // reset shield to original value
                     
                     if (canSave) {
                         return tempAct;
@@ -173,12 +195,17 @@ int HeuristicActor::generateAction(State& state) {
             } else {
                 rr[i] = false;
                 int x = state.players[i]->currentSideNum;
-                if (state.rerolls >= 2 && (x == 4 || x == 5)) {
+                if (state.rerolls >= 2 && (x == 3 || x == 4)) {
                     rr[i] = true;
                 }
-                if ((state.turn == 1 && state.players[i]->currentSide.type == SideType::HEAL) || (state.players[i]->currentSide.type == SideType::REROLL)) {
+                SideType sideType = state.players[i]->currentSide.type;
+                if ((state.turn == 1 && sideType == SideType::HEAL)
+                 || sideType == SideType::REROLL || sideType == SideType::ENCHANT || sideType == SideType::DAMAGE_EVERYONE
+                 || (sideType == SideType::RESURRECT && !(state.players[0]->dead || state.players[1]->dead || state.players[2]->dead || state.players[3]->dead || state.players[4]->dead))
+                 || (sideType == SideType::DODGE && state.players[i]->incomingDamage == 0)) {
                     rr[i] = true;
                 }
+                
             }
         }
         int targAct = actionsReversedIDs.at(std::make_pair(REROLL_ACTION, std::make_pair(util::ba2int<5>(rr), 0)));
