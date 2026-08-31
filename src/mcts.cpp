@@ -4,7 +4,7 @@
 
 #include <iostream>
 
-MCTS::MCTS(int nSims, double K, double alpha, double beta, int progressBar) : nSims(nSims), K(K), root(std::make_unique<DecisionNode>(State(), nullptr, true)), initialState(State()), alpha(alpha), beta(beta), progressBar(progressBar) {}
+MCTS::MCTS(int nSims, double K, double alpha, double beta, double C, int progressBar) : nSims(nSims), K(K), root(std::make_unique<DecisionNode>(State(), nullptr, true)), initialState(State()), alpha(alpha), beta(beta), C(C), progressBar(progressBar) {}
 
 std::unique_ptr<DecisionNode>& MCTS::updateDecisionNode(State decisionNodeState, RandomNode& randomNode) {
     if (randomNode.children.count(decisionNodeState) == 0) {
@@ -90,7 +90,8 @@ State MCTS::selectOutcome(State state, RandomNode& randomNode) {
     // DPW SelectOutcome algorithm
 
 
-    if (std::pow(randomNode.visits, beta) >= randomNode.children.size()) {
+
+    if (C * std::pow(randomNode.visits, beta) >= randomNode.children.size()) {
         transition(state, randomNode.action);
         return state;
     } else {
@@ -115,7 +116,7 @@ double MCTS::UCTval(const RandomNode& randomNode) {
 int MCTS::select(DecisionNode& decisionNode) {
     // SPW Select algorithm
     int a=0;
-    if (!decisionNode.filledActions && std::pow(decisionNode.visits, alpha) >= decisionNode.children.size()) {
+    if (!decisionNode.filledActions && C * std::pow(decisionNode.visits, alpha) >= decisionNode.children.size()) {
         auto vactions = validActions::validActionsFast(decisionNode.state);
         
         if (vactions.size() == decisionNode.children.size()) { // As soon as all valid actions actions have been added to children map, only use UCT from then on

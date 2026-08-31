@@ -22,6 +22,7 @@ public:
 
     double alpha;
     double beta;
+    double C;
 
     std::vector<std::unordered_map<State, std::pair<double, int>, boost::hash<State>>> transpositionTable; 
         // transpositionTable[i] represents the expected q value and number of visits for a particular EMPTY_TURN state on turn i (i+1, since turns are 1-indexed)
@@ -29,7 +30,7 @@ public:
 
     int progressBar;
 
-    MCTS(int nSims, double K, double alpha, double beta, int progressBar=0);
+    MCTS(int nSims, double K, double alpha, double beta, double C, int progressBar=0);
     std::unique_ptr<DecisionNode>& updateDecisionNode(State decisionNodeState,RandomNode& randomNode);
     void grow_tree();
     double evaluate(State state);

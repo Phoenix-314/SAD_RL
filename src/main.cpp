@@ -611,7 +611,7 @@ int main(int argc, char *argv[]) {
     HeuristicActor heuristicActor;
     TrialActor trialActor(&randomActor, 100);
     TrialActor triristicActor(&heuristicActor, 500);
-    MCTS mcts(200000, 0.05, 0.4, 0.35, 2); // nSims, K, alpha, beta, progressBar // 200000
+    MCTS mcts(10000, 0.05, 0.4, 0.35, 1.0, 2); // nSims, K, alpha, beta, C, progressBar // 200000
     // mcts(5000, 1.414, -0.0, 0.5, 0); // with BASE MCTS select, not SPW
 
     // State state = initial();
@@ -648,15 +648,15 @@ int main(int argc, char *argv[]) {
 	// State state = initial();
 	//int v = mcts.generateAction(state);
     //std::cout << v << std::endl;
-    // playGame(&mcts, &state);
+    playGame(&mcts, &state);
     // State init = initial();
     // playGame(&heuristicActor, &state);
     // playManyGamesRandomly(mcts, numGames, 1);
 
 
-    Requests requests;
-    std::string response = requests.GetResponse("Provide a rambling explanation of what to consider when placing a settlement in Catan.");
-    std::cout << "Response:\n" << response << std::endl;
+    //Requests requests;
+    //std::string response = requests.GetResponse("Provide a rambling explanation of what to consider when placing a settlement in Catan.");
+    //std::cout << "Response:\n" << response << std::endl;
 
     // playManyGamesRandomly(&triristicActor, numGames, 1);
     // playManyGamesRandomly(&heuristicActor, numGames * 1000, 1);  //7.679
