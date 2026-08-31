@@ -9,6 +9,7 @@
 #include <exception>
 #include <set>
 #include <unordered_map>
+#include <algorithm>
 
 
 #include "state.h"
@@ -28,6 +29,7 @@
 #include "mcts.h"
 
 #include "render.h"
+#include "requests.h"
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
@@ -639,6 +641,10 @@ int main(int argc, char *argv[]) {
     #ifdef __EMSCRIPTEN__
     playGameBrowser(mcts, &state);
     #else
+    SetConsoleOutputCP(CP_UTF8); // Handling responses from gemini
+    // Enable buffering to prevent VS from chopping up UTF-8 byte sequences
+    setvbuf(stdout, nullptr, _IOFBF, 1000);
+    
 	// State state = initial();
 	//int v = mcts.generateAction(state);
     //std::cout << v << std::endl;
@@ -647,10 +653,15 @@ int main(int argc, char *argv[]) {
     // playGame(&heuristicActor, &state);
     // playManyGamesRandomly(mcts, numGames, 1);
 
-    playManyGamesRandomly(&triristicActor, numGames, 1);
-    playManyGamesRandomly(&heuristicActor, numGames * 1000, 1);  //7.679
+
+    Requests requests;
+    std::string response = requests.GetResponse("Provide a rambling explanation of what to consider when placing a settlement in Catan.");
+    std::cout << "Response:\n" << response << std::endl;
+
+    // playManyGamesRandomly(&triristicActor, numGames, 1);
+    // playManyGamesRandomly(&heuristicActor, numGames * 1000, 1);  //7.679
     // playManyGamesRandomly(trialActor, numGames, 1);
-    playManyGamesRandomly(&randomActor, numGames * 1000, 1);
+    // playManyGamesRandomly(&randomActor, numGames * 1000, 1);
     #endif
 
 

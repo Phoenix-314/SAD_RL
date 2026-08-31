@@ -5,8 +5,8 @@ ROOT = Path(__file__).parent
 
 def RunConan(build_type, profile, output_folder):
     subprocess.run((
-        'conan', 'install', '.', 
-        '--build', 'missing', 
+        'conan', 'install', '.',
+        '--build', 'missing',
         f'--output-folder={output_folder}',
         f'--profile:host={profile}',
         '--profile:build=default',
