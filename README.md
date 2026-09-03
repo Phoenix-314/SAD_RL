@@ -1,36 +1,65 @@
-Slice and Dice and Reinforcement Learning
+# Slice and Dice & Reinforcement Learning (SAD RL)
 
-The goal of this project is to build a RL agent that can play Slice and Dice (SAD, or SnD)
-better than human players. The challenge of SAD is around winstreaking, which is the task
-of winning many games consecutively (often 30-40 games). Because of this goal, it is critical
-for players or AIs to recognize small optimizations that increase the chance of winning an individual
-game by a fraction of a percent.
+## About
+This project contains two significant parts:
 
-Completed Progress:
-1) Implemented a simplified python environment of SAD and verified it is (mostly) faithful.
-- Switch code to C++ for performance improvements. After some research, I determined cython would be ineffective for this project.
-- Use profiling to enhance the speed of the environment.
+1) Slice and Dice Environment: This is a recreation of part of Tann's game, Slice and Dice. It is made in C++ and is hundreds or thousands of times faster, but does not have faithful graphics, items/modifiers (game mechanics), or any animations. The purpose of the environment is to allow an RL agent to train or search fast enough to make smart decisions in a reasonable amount of time.
 
-Current Task:
-2) Implement RL agent to play my environment with extremely high consistency.
-Current plan is to use MCTS with DPW and a transposition table. Currently implementing an improved rollout policy (could also implement a evaluation function instead).
+2) Reinforcement Learning Algorithm: This is an algorithm meant to find the optimal action in any given state, specialized for Slice and Dice. The goal is to optimize probability of winning, which is near 100% for skilled players. Therefore, it aims to address distinguishing optimal actions in situations where multiple actions are very likely to be winning.
 
-Future Plans:
+The game is typically abbreviated SnD, a fact I learned after naming this project.
+
+## Running
+
+A link to a browser version of this project will be attached here shortly.
+
+Instructions;
 
 
-3) Implement the full version of SAD, including modifiers and items.
-I may need to improve the efficiency of the RL agent around this time based on performance, since the full version of SAD
-is not as efficient as my environment.
+## Installation
 
-4) Modify RL agent to work with the full version of SAD.
+This uses premake5 and conan for building.
+Testing has been done when building for Visual Studio 2026 and with Emscripten.
 
-AI Usage:
-- Copilot autocomplete
-- Copilot was wrote the renderer (with some bug fixes by me), since the RL agent will not use it
+Premake5 executable is available in the repository.
+Conan 2.30.0 can be installed via pip/conda.
+The conanfile and premake5.lua files are available in the repository.
 
-Resources
-- https://ieee-cog.org/2020/papers2019/paper_257.pdf
+1) Run ```python init.py```
+
+2) If using visual studio 2026: Run the resulting SAD_CPP.slnx file.
+
+If using a browser, run the 2 following commands in a terminal.
+
+cmd /d /c "call dependencies\emscripten\conanbuild.bat && [pathToConan]\\.conan2\p\\[packageToGnumake]\p\bin\gnumake.exe -f Makefile config=release -j1"
+
+cmd /d /c "call dependencies\emscripten\conanbuild.bat && emrun docs\SAD_CPP.html"
+
+## Future Plans
+
+Implement a full transposition table setup to improve training efficiency.
+
+Implement and train a neural network for evaluation of leaf nodes (instead of using rollouts). Will likely research and use a setup similar to AlphaZero, although with more domain specific knowledge of Slice and Dice.
+
+Allow users to query Gemini for the best possible move in a situation. Gemini will be able to access information about the state as well as the current search information from the RL Agent.
+
+Potentially, I could try to modify the agent to work with the full version of SnD.
+
+## LLM Usage:
+
+The following list consitutes a complete list of LLM usage when constructing this project:
+- Copilot inline suggestions
+- Copilot wrote the renderer and user input code (with some bug fixes by me). These functions are not used when training the RL Agent
+- Copilot debugged library/dependency issues
+- Users may be able to query Gemini for explanations of optimal moves
+
+## References
+- Tann. (2021). Slice And Dice (v. 3.2.13) [Desktop]. https://tann.fun/games/dice/
+- J. S. B. Choe and J. -K. Kim, "Enhancing Monte Carlo Tree Search for Playing Hearthstone," 2019 IEEE Conference on Games (CoG), London, UK, 2019, pp. 1-7, doi: 10.1109/CIG.2019.8848034. keywords: {Games;Monte Carlo methods;Artificial intelligence;Directed acyclic graph;Search problems;Decision trees;Monte-Carlo tree search;Hearthstone;artificial intelligence for games},
+
 - A. Couetoux, J.-B. Hoock, N. Sokolovska, O. Teytaud, and N. Bonnard, ¨
 “Continuous upper confidence trees,” in International Conference on
 Learning and Intelligent Optimization. Springer, 2011, pp. 433–445
-- https://www.researchgate.net/publication/235985858_A_Survey_of_Monte_Carlo_Tree_Search_Methods
+- C. B. Browne et al., "A Survey of Monte Carlo Tree Search Methods," in IEEE Transactions on Computational Intelligence and AI in Games, vol. 4, no. 1, pp. 1-43, March 2012, doi: 10.1109/TCIAIG.2012.2186810.
+
+

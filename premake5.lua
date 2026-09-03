@@ -29,7 +29,7 @@ workspace "SAD_CPP"
         filter "options:browser"
             profile "Off"
             targetextension ".html"
-            targetdir "build/%{cfg.buildcfg}/browser"
+            targetdir "docs" -- "build/%{cfg.buildcfg}/browser" -- built in docs folder for github pages access
             toolset "clang"
             buildoptions { "-pthread" }
             linkoptions {
@@ -37,7 +37,7 @@ workspace "SAD_CPP"
                 "-sALLOW_MEMORY_GROWTH=1",
                 "-sSTACK_SIZE=1048576",
                 "-sNO_EXIT_RUNTIME=1",
-                "--preload-file", "../imgs@/imgs",
+                "--preload-file", "../assets@/assets",
             }
         filter {}
 

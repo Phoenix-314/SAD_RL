@@ -19,7 +19,7 @@ class Render:
         pg.display.flip()
         self.font_cache = {}
         self.image_cache = {}
-        self.image_dir = Path(__file__).resolve().parent / "imgs"
+        self.image_dir = Path(__file__).resolve().parent / "assets"
         self.card_size = (220, 120)
         self.side_square_size = 110
         self.console_height = 72

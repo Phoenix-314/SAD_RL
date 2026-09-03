@@ -40,12 +40,12 @@ if __name__ == "__main__":
 # Debug:
 # conan install . --build="*" --output-folder=dependencies/emscripten --profile:host=profiles/emscripten-debug --profile:build=default
 # cmd /d /c "call dependencies\emscripten\conanbuild.bat && C:\Users\ecard\.conan2\p\makec216fa1c2c18f\p\bin\gnumake.exe -f Makefile config=debug -j1"
-# cmd /d /c "call dependencies\emscripten\conanbuild.bat && emrun build\Debug\browser\SAD_CPP.html"
+# cmd /d /c "call dependencies\emscripten\conanbuild.bat && emrun docs\SAD_CPP.html"
 
 # Release:
 # conan install . --build="*" --output-folder=dependencies/emscripten --profile:host=profiles/emscripten-release --profile:build=default
 # cmd /d /c "call dependencies\emscripten\conanbuild.bat && C:\Users\ecard\.conan2\p\makec216fa1c2c18f\p\bin\gnumake.exe -f Makefile config=release -j1"
-# cmd /d /c "call dependencies\emscripten\conanbuild.bat && emrun build\Release\browser\SAD_CPP.html"
+# cmd /d /c "call dependencies\emscripten\conanbuild.bat && emrun docs\SAD_CPP.html"
 
-# cmd /d /c "call dependencies\emscripten\conanbuild.bat && emrun --no_browser build\Debug\browser\SAD_CPP.html"
-# cmd /d /c "call dependencies\emscripten\conanbuild.bat && emrun --no_browser build\Release\browser\SAD_CPP.html"
+# cmd /d /c "call dependencies\emscripten\conanbuild.bat && emrun --no_browser docs\SAD_CPP.html"
+# cmd /d /c "call dependencies\emscripten\conanbuild.bat && emrun --no_browser docs\SAD_CPP.html"

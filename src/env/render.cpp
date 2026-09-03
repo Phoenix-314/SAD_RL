@@ -150,7 +150,7 @@ void drawCircleOutline(SDL_Renderer* renderer, int centerX, int centerY, int rad
 
 std::filesystem::path pickFontPath()
 {
-    const std::filesystem::path fontPath = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path() / "imgs" / "segoeui.ttf";
+    const std::filesystem::path fontPath = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path() / "assets" / "segoeui.ttf";
     if (std::filesystem::exists(fontPath)) {
         return fontPath;
     }
@@ -179,7 +179,7 @@ Render::Render(std::pair<int, int> size)
     : window_(nullptr)
     , renderer_(nullptr)
     , size_(size)
-    , imageDir_(std::filesystem::path(__FILE__).parent_path().parent_path().parent_path() / "imgs")
+    , imageDir_(std::filesystem::path(__FILE__).parent_path().parent_path().parent_path() / "assets")
     , consolePrompt_(">>> ")
     , consoleBuffer_()
     , consoleHistory_()
