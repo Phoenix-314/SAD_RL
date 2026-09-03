@@ -16,6 +16,11 @@ struct SDL_Renderer;
 struct SDL_Texture;
 union SDL_Event;
 
+/*
+ * Render class - handles rendering an arbitrary State to a window using SDL
+ * Also takes in input via a console overlay
+ * Is not used when policies are trained or search
+*/
 
 class Render {
 public:

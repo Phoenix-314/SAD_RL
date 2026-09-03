@@ -3,6 +3,11 @@
 #include <array>
 #include "env/entIDs.h"
 
+
+/*
+ * Stores a list of all possible fights per level, as well as probabilities of each fight
+ * Includes a function to generate a random fight given a level
+*/
 class Fights {
 public:
     static std::vector<int> generateFight(int lvl);

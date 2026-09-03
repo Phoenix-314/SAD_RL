@@ -4,7 +4,7 @@
 #include "env/state.h"
 
 
-/*
+/**
  * RandomActor generates an action by selecting a random valid action, with the following heuristics:
  *  - Do not end turn if any other valid action is available
  *  - Do not burst defensively (SA01-SA05) ever, since it usually wont hit a target that needs a defensive burst and offence is usually better

@@ -7,6 +7,11 @@
 #include "env/ents.h"
 #include "env/state.h"
 
+/*
+ * Maps Unique integer IDs to a string representation of what they are
+ * Used for debugging and rendering, but not any game/policy logic
+*/
+
 inline const std::map<SideType, std::string> sidesReversedIDs = {
     {SideType::DAMAGE, "DAMAGE"},
     {SideType::SHIELD, "SHIELD"},

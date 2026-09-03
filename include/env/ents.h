@@ -8,6 +8,11 @@
 #include <boost/serialization/optional.hpp>
 #include <boost/serialization/utility.hpp>
 
+/*
+ * Ent dataclass - stores the data of a single entity, such as a hero or monster
+ * Side dataclass - stores the data of a single side of a die, including its value, type, and keywords
+ * SideType enum - list of possible sidetypes (includes all sides on base hero/monster types, but not all possible sides in og SAD)
+*/
 
 enum class SideType {
     DAMAGE = 0,

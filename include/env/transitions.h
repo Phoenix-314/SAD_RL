@@ -9,11 +9,14 @@
 
 
 /**
- * Alongside factions, this contains the majority of specific game logic.
- * Includes the transition function, which takes in a state and an action, and returns the next state.
- * - Transition will accept any action, even if invalid. Use validActions to determine if an action is valid.
- *
- * Also includes the useDice, endTurn, endFight, and castSpell functions
+ * Includes initializeLibraries and transition functions
+ * 
+ * Initialize libraries must be called exactly once before any other functions are the env are called
+ * Transition takes in a state and an action, and returns the next state. It does not check that the action is valid
+ * Aside from validActionsFast, transition and initializeLibraries are the only functions that need to be called by an external agent (also isTerminal and isFightEnd)
+ * 
+ * Also contains various functions used directly or indirectly by transition, generally handling larger sections of game logic using the 
+ *      functions present in other files.
  */
 void initializeLibraries();
 

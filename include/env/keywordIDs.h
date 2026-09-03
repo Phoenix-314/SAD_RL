@@ -1,6 +1,10 @@
 #pragma once
 
-// intentionally not an enum class, values are orderered intentionally
+/*
+ * Enum for all possible KeywordIDs.
+ * Not an enum class because they need to be used as indices into the keyword array in Side
+ * Ordered to allow simple code to run all the necessary keyword checks in the correct order
+*/
 enum KeywordID {
     // TARGETING
     RANGED=0,
@@ -47,7 +51,7 @@ enum KeywordID {
     BOOST=36,
     SMITH=37,
     PERMABOOST=38,
-    // Action Time. These keywords are handled by useDice, instead of in the keyword function in keywords.py
+    // Action Effects (Applied during the attack part of a diceUse or during target collection phase)
     RAMPAGE=39,
     RESCUE=40,
     DOUBLEUSE=41,
@@ -55,9 +59,8 @@ enum KeywordID {
     CLEAVE=43,
     DESCEND=44,
     REPEL=45,
-    // BONED
     BONED=46,
-    // Post Attack Effects
+    // Post Attack Effects (Applied after the attack part of a diceUse is resolved)
     DEATH=47,
     PAIN=48,
     MANAGAIN=49,

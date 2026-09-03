@@ -1,8 +1,10 @@
 #pragma once
 #include <vector>
 
-//namespace entIDs
-//{
+/*
+ * Global constants representing the unique IDs of all entities in the game, including heros and monsters
+*/
+
 inline constexpr int THIEF = 0;
 inline constexpr int SCOUNDREL = 1;
 inline constexpr int LOST = 2;
@@ -195,4 +197,3 @@ inline constexpr int BANSHEE = -66;
 inline constexpr int DRAGON_EGG = -67;
 inline constexpr int CAW_EGG = -68;
 inline constexpr int SNIPER = -69;
-//}

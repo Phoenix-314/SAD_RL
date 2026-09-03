@@ -15,6 +15,7 @@
  * Monte Carlo Tree Search implementation with double progressive widening (Couetoux et al., 2011))
  *  Includes minor optimizations with a transposition table specific to SnD
 */
+
 class MCTS : public ActionGenerator {
 public:
     int nSims;

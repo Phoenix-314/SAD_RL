@@ -11,8 +11,9 @@
 
 /**
  * Spell functions used in castSpell.
+ * Also contains data about spell costs, targeting requirements, and casting effects
  * 0 is burst
- * 1-5 are orange through blue, although typically only 4 and 5 are usable (few spells are orange, yellow, or gray)
+ * 1-5 are orange through blue, although typically only 4 and 5 are usable (few orange, yellow, or gray heros have spells)
  */
 
 void initializeSpellMaps();

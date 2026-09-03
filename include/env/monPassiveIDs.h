@@ -1,5 +1,9 @@
 #pragma once
 
+/*
+ * Enum for all possible OnHitPassive IDs.
+*/
+
 enum OnHitPassive {
     ON_HIT_SARCOPHAGUS=0,
     ON_HIT_SHADE=1,

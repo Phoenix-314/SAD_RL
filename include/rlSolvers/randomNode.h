@@ -11,13 +11,18 @@
 
 class DecisionNode;
 
+/**
+ * RandomNode class - represents a random node in the MCTS tree
+ * Primarily contains an action, a map of states to DecisionNodes, and some node data
+ *  - Owns its children DecisionNodes
+ */
+
 class RandomNode {
 public:
     int action;
     std::unordered_map<State, std::unique_ptr<DecisionNode>, boost::hash<State>> children;
     double cumulativeReward;
     int visits;
-    // double reward;
     DecisionNode* father;
 
     RandomNode(int action, DecisionNode* father);

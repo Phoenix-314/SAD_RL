@@ -8,7 +8,8 @@
 #include "env/state.h"
 
 /**
- * Fundamental actions, such as damage, heal, summon, res, handleDeaths, etc.
+ * Fundamental actions affecting the game state
+ * These functions are used by keywords, monster passives, dice, spells, and between actions or combat rounds
  */
 
 namespace factions {

@@ -6,9 +6,10 @@
 #include <string>
 
 /*
- * TrialActor generates an action by taking each action numSims=100 times, and simulating the rest of the fight with heuristic random actions. 
- * It then returns the action that reaches the next fight the highest number of times.
- * (Built before implementing information btwn fights, such dead heros starting with half health and hero choice)
+ * TrialActor class - generates an action by taking each action numSims=100 times, and simulating the rest of the fight with the rollout policy 
+ * Returns the action that reaches the next fight the highest number of times.
+ *  - Does not account for any data that transfers between fights, assumes all methods of reaching the next fight are equally good
+ * 
 */
 
 class TrialActor : public ActionGenerator {

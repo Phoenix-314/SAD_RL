@@ -6,9 +6,9 @@
 #include "env/constants.h"
 
 /*
-Mon passives are unique effects that occur when a monster is hit.
-Does not include Bell, Rotten, chest, sarcophagus, barrel, bandit, goblin, or bones since these do not occur when the monster is hit.
-Demon has additional support elsewhere as well due to complexity of its passive.
+ * Mon passives are unique effects that occur when a monster is hit.
+ * Does not include Bell, Rotten, chest, sarcophagus, barrel, bandit, goblin, or bones since these do not occur when the monster is hit.
+ * Demon has additional code in damage(...) function.
 */
 
 void initializePassivesMap();

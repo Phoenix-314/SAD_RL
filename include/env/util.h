@@ -9,8 +9,10 @@
 #include "env/keywordIDs.h"
 
 /*
-A few utility functions that depend only on the dataclass/ID files
-Includes printState and printEnt, which are used for debugging
+ * A few utility functions that depend only on the dataclass/ID files
+ * Includes printState and printEnt, which are useful for debugging
+ * 
+ * Also includes targetIsDying, which may be useful for some heuristic-based policies
 */
 
 namespace util {

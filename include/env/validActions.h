@@ -8,10 +8,10 @@
 #include "env/state.h"
 
 /*
-Returns a list of valid actions for the current state with validActions(state)
- - All checking for valid actions is done here. Transition will accept an invalid action without throwing an error, but may produce odd results
-
-Also includes diceUsable
+ * Returns a list of valid actions for the current state with validActionsFast
+ * - All checking for valid actions is done here. Transition will accept an invalid action without throwing an error, but may produce odd results
+ * 
+ * Also includes diceUsable, which may be useful for some heuristic-based policies
 */
 
 namespace validActions {

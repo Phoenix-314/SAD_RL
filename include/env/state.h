@@ -13,6 +13,12 @@
 #include "env/ents.h"
 #include "env/constants.h"
 
+/*
+ * State dataclass - stores the data of a single game state, including all information needed to start a game from that state
+ * StateType enum
+ * Also sets up serialization for the State class, so states can be saved and loaded from files
+*/
+
 enum class StateType {
     BATTLE = 0,              // "Normal" state
     EMPTY_FIGHT = 1,          // The momentary state between battles where the next battle is not yet generated

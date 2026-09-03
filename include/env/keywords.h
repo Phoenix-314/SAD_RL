@@ -5,7 +5,9 @@
 #include "env/state.h"
 
 /*
-Keyword functions. These can be called directly, or proccessed as a batch by the applyAffectKeywords, completeActionKeywords, findStaticPips, and findDynamicPips functions.
+ * Keyword functions. 
+ * These are called directly by some monPassives or spells
+ * These are processed as a batch by the applyAffectKeywords, completeActionKeywords, findStaticPips, and findDynamicPips functions
 */
 
 void initializeKeywordMap();

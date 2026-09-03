@@ -2,7 +2,9 @@
 
 #include <utility>
 
-typedef std::pair<bool, int> EntPointer; // isEnemy, index pair.
+/*
+ * Various constants
+*/
 
 inline constexpr int MAX_NUM_SPECIAL_HP = 31;  // Max possible special HP for any monster
 

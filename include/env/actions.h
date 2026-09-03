@@ -2,6 +2,10 @@
 #include <vector>
 #include <utility>
 
+/*
+ * Constants for action types
+ * Map of 183 possible actions [0,182] to the values needed for the game to process the action
+*/
 inline constexpr int DICE_ALLY_ACTION = 0;
 inline constexpr int DICE_ENEMY_ACTION = 1;
 inline constexpr int SPELL_ALLY_ACTION = 2;

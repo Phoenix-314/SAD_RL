@@ -1,5 +1,8 @@
 #pragma once
 
+/*
+ * Enums for unique Spell IDs, spell cooldown data, spell cooldown types, and spell targeting requirements
+*/
 enum SpellID {
     MEND = 0,
     HEMLOCK = 1,
