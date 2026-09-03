@@ -11,23 +11,23 @@
 #include <unordered_map>
 
 
-#include "state.h"
-#include "ents.h"
-#include "actions.h"
-#include "fights.h"
-#include "reversedIDs.h"
-#include "util.h"
-#include "transitions.h"
-#include "factions.h"
-#include "validActions.h"
+#include "env/state.h"
+#include "env/ents.h"
+#include "env/actions.h"
+#include "env/fights.h"
+#include "env/reversedIDs.h"
+#include "env/util.h"
+#include "env/transitions.h"
+#include "env/factions.h"
+#include "env/validActions.h"
 
-#include "actionGenerator.h"
-#include "randomActor.h"
-#include "trialActor.h"
-#include "heuristicActor.h"
-#include "mcts.h"
+#include "rlSolvers/actionGenerator.h"
+#include "rlSolvers/randomActor.h"
+#include "rlSolvers/trialActor.h"
+#include "rlSolvers/heuristicActor.h"
+#include "rlSolvers/mcts.h"
 
-#include "render.h"
+#include "env/render.h"
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
@@ -334,9 +334,9 @@ std::pair<State, int> loadState() {
 #ifdef __EMSCRIPTEN__
 Render renderer = Render({1920, 1080});
 State state;
-MCTS* actionGenerator;
+ActionGenerator* actionGenerator;
 bool clearConsole = true;
-void init(MCTS* actionGen, State initialState) {
+void init(ActionGenerator* actionGen, State initialState) {
     state = initialState;
     actionGenerator = actionGen;
 }
@@ -364,6 +364,8 @@ void runGameLoop() {
             return;
         }
     }
+    
+    if (!line.value().empty()) {
     try {
         std::string x = line.value();
         if (x[0] == 'q') {
@@ -456,6 +458,7 @@ void runGameLoop() {
         util::printState(state, true);
         return;
     }
+    }
 
     if (state.stateType == StateType::WON || state.stateType == StateType::LOST) {
         std::cout << "Game Over. Result: " << stateTypesReversedIDs.at(state.stateType) << ", Level: " << state.level << std::endl;
@@ -473,7 +476,7 @@ int playGameBrowser(ActionGenerator* actionGenerator, State* statePtr) {
     if (statePtr == nullptr) {
         statePtr = &s;
     }
-    init(&actionGenerator, *statePtr);
+    init(actionGenerator, *statePtr);
     renderer.initialize();
     emscripten_set_main_loop(runGameLoop, 0, 1);
     return 0;
@@ -608,8 +611,8 @@ int main(int argc, char *argv[]) {
     RandomActor randomActor;
     HeuristicActor heuristicActor;
     TrialActor trialActor(&randomActor, 100);
-    TrialActor triristicActor(&heuristicActor, 500);
-    MCTS mcts(200000, 0.05, 0.4, 0.35, 2); // nSims, K, alpha, beta, progressBar // 200000
+    TrialActor triristicActor(&heuristicActor, 50);
+    MCTS mcts(&heuristicActor, 5000, 0.05, 0.4, 0.35, 2); // nSims, K, alpha, beta, progressBar // 200000
     // mcts(5000, 1.414, -0.0, 0.5, 0); // with BASE MCTS select, not SPW
 
     // State state = initial();
@@ -637,7 +640,7 @@ int main(int argc, char *argv[]) {
     std::cout << "Playing " << numGames << " games..." << std::endl;
     //  rand();
     #ifdef __EMSCRIPTEN__
-    playGameBrowser(mcts, &state);
+    playGameBrowser(&mcts, &state);
     #else
 	// State state = initial();
 	//int v = mcts.generateAction(state);
@@ -648,7 +651,7 @@ int main(int argc, char *argv[]) {
     // playManyGamesRandomly(mcts, numGames, 1);
 
     playManyGamesRandomly(&triristicActor, numGames, 1);
-    playManyGamesRandomly(&heuristicActor, numGames * 1000, 1);  //7.679
+    playManyGamesRandomly(&heuristicActor, numGames * 1000, 1);
     // playManyGamesRandomly(trialActor, numGames, 1);
     playManyGamesRandomly(&randomActor, numGames * 1000, 1);
     #endif

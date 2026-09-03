@@ -1,1 +1,0 @@
-inline constexpr int RAD = -3;
