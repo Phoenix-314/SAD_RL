@@ -373,6 +373,7 @@ void runGameLoop() {
         } else if (x[0] == 'r') {
             if (x.length() != 6) {
                 std::cout << "INVALID INPUT. Try again: " << x << std::endl;
+                return;
             }
             std::array<int, 5> rerollValues;
             for (int i=0;i<5;i++) { rerollValues[i] = int(x[i+1] - '0'); }
@@ -419,12 +420,9 @@ void runGameLoop() {
                 if (x.length() == 1) {
                     data = std::make_pair<int, int>(0, 0);
                 } else {
-                    if (x.length() != 6 && x.length() != 2) {
-                        std::cout << "INVALID INPUT. Try again: " << x << std::endl;
-                    }
                     if (x.length() == 2) {
                         data = std::make_pair<int, int>(31, 0);
-                    } else {
+                    } else if (x.length() == 6) {
                         std::array<bool, 5> boolarray;
                         for (int i=0;i<5;i++) { boolarray[i] = (x[i+1] == '1'); }
                         data = std::make_pair<int, int>(util::ba2int<5>(boolarray), 0);

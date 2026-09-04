@@ -1,5 +1,7 @@
 import subprocess
 from pathlib import Path
+import sys
+import shutil
 
 ROOT = Path(__file__).parent
 
@@ -29,22 +31,49 @@ def RunPremake(*args):
         'premake5.exe', *args
     ), cwd=ROOT, check=True)
 
-if __name__ == "__main__":
-    RunConan("Debug", "profiles/windows-debug", "dependencies")
-    RunConan("Release", "profiles/windows-release", "dependencies")
-    RunConan("Debug", "profiles/emscripten-debug", "dependencies/emscripten")
-    RunConan("Release", "profiles/emscripten-release", "dependencies/emscripten")
-    RunPremake("vs2026")
-    RunPremake("gmake", "--browser", "--cc=emcc")
+def RunEmscripten():
+    subprocess.run((
+        'cmd', '/d', '/c',
+        'call', 'dependencies/emscripten/conanbuild.bat',
+        '&&', 
+        'C:\\Users\\ecard\\.conan2\\p\\makec216fa1c2c18f\\p\\bin\\gnumake.exe', '-f', 'Makefile', 'config=release', '-j1',
+    ), cwd=ROOT, check=True)
+    source = ROOT / "docs" / "SAD_CPP.html"
+    destination = ROOT / "docs" / "index.html"
+    shutil.move(str(source), str(destination))
+    subprocess.run((
+        'cmd', '/d', '/c',
+        'call', 'dependencies/emscripten/conanbuild.bat', '&&', 'emrun', 'docs\\index.html',
+    ), cwd=ROOT, check=True)
 
-# Debug:
-# conan install . --build="*" --output-folder=dependencies/emscripten --profile:host=profiles/emscripten-debug --profile:build=default
-# cmd /d /c "call dependencies\emscripten\conanbuild.bat && C:\Users\ecard\.conan2\p\makec216fa1c2c18f\p\bin\gnumake.exe -f Makefile config=debug -j1"
-# cmd /d /c "call dependencies\emscripten\conanbuild.bat && emrun docs\SAD_CPP.html"
+if __name__ == "__main__":
+    args = sys.argv[1:]
+    if len(args) == 0:
+        RunConan("Debug", "profiles/windows-debug", "dependencies")
+        RunConan("Release", "profiles/windows-release", "dependencies")
+        RunConan("Debug", "profiles/emscripten-debug", "dependencies/emscripten")
+        RunConan("Release", "profiles/emscripten-release", "dependencies/emscripten")
+        RunPremake("vs2026")
+        RunPremake("gmake", "--browser", "--cc=emcc")
+    elif len(args) == 1 and args[0] == "emscripten":
+        RunEmscripten()
+    else:
+        print("Usage: python init.py [emscripten]")
+
+
 
 # Release:
 # conan install . --build="*" --output-folder=dependencies/emscripten --profile:host=profiles/emscripten-release --profile:build=default
 # cmd /d /c "call dependencies\emscripten\conanbuild.bat && C:\Users\ecard\.conan2\p\makec216fa1c2c18f\p\bin\gnumake.exe -f Makefile config=release -j1"
+# move docs\SAD_CPP.html docs\index.html
+# cmd /d /c "call dependencies\emscripten\conanbuild.bat && emrun docs\index.html"
+
+
+
+# Deprecated commands:
+# Debug:
+# conan install . --build="*" --output-folder=dependencies/emscripten --profile:host=profiles/emscripten-debug --profile:build=default
+# cmd /d /c "call dependencies\emscripten\conanbuild.bat && C:\Users\ecard\.conan2\p\makec216fa1c2c18f\p\bin\gnumake.exe -f Makefile config=debug -j1"
 # cmd /d /c "call dependencies\emscripten\conanbuild.bat && emrun docs\SAD_CPP.html"
 
 # cmd /d /c "call dependencies\emscripten\conanbuild.bat && emrun --no_browser docs\SAD_CPP.html"

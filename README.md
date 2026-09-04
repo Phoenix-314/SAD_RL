@@ -11,10 +11,54 @@ The game is typically abbreviated SnD, a fact I learned after naming this projec
 
 ## Running
 
-A link to a browser version of this project will be attached here shortly.
+Browser access: https://phoenix-314.github.io/SAD_RL/
 
-Instructions;
+Instructions:
 
+0) Play and understand Slice and Dice by Tann. The display is not intended to be teach players how to play SnD. Further, it requires some knowledge of SnD to understand the display. The game also requires a keyboard, and it may require resizing the browser.
+
+1) To play the game, enter commands into the terminal. The terminal is always selected.
+
+The game is very similar to SnD, with the following modifications:
+
+- No items, modifiers, hero select, or different game modes.
+- No UNDO (would increase state memory size)
+- All rerolls must be used before using dice or spells. Can 'reroll' 0 dice to end rerolling phase.
+- Must use a continue action to proceed after rerolling phase, ending turn, or ending a fight.
+- The current default RL agent is: TrialActor, using 500 simulations of each possible action with rolloutPolicy heuristicActor.
+
+<br>
+
+The following is a list of available commands:
+
+Actions (case sensitive):
+
+- (Empty input): Takes an action based on the current policy. The chosen action is printed to the console.
+- DAXY: DA=Dice targeting Ally, uses hero X's dice for hero Y
+- DEXY: DE=Dice targeting Enemy, uses hero X's dice against enemy Y
+- SAXY: SA=Spell targeting Ally, uses spell X for hero Y. Spell 0 is burst, spell X is hero X's spell.
+- SEAF: SE=Spell targeting Enemy, uses spell A against enemy F.
+- RABCDE: Rerolls hero 1's dice if A=1, keeps hero 1's dice if A=0. Respectively, B-E for heros 2-5.
+- E: Ends turn. Cannot be used during the rerolling phase.
+- C: Continue action. Must be used after rerolling phase, after ending turn, and after winning a fight.
+- R: Rerolls no heros (wastes a reroll to end rerolling phase)
+- R?: Rerolls all heros, regardless of the value of ?
+
+
+Debug Actions:
+
+- a: prints a list of valid actions in the current state (note: user actions may differ by 1 due to 0-indexing)
+- rABCDE: forces hero 1 to roll side A, etc.
+- s: prints the current state
+- seY: prints enemy number Y
+- saY: prints hero number Y
+
+<br>
+
+Other notes:
+ Agent does not get his shifter sides. Very sad.
+
+Keywords are applied, but are not displayed visually.
 
 ## Installation
 
@@ -27,13 +71,9 @@ The conanfile and premake5.lua files are available in the repository.
 
 1) Run ```python init.py```
 
-2) If using visual studio 2026: Run the resulting SAD_CPP.slnx file.
+2) If using visual studio 2026: Run the resulting ```SAD_CPP.slnx``` file.
 
-If using a browser, run the 2 following commands in a terminal.
-
-cmd /d /c "call dependencies\emscripten\conanbuild.bat && [pathToConan]\\.conan2\p\\[packageToGnumake]\p\bin\gnumake.exe -f Makefile config=release -j1"
-
-cmd /d /c "call dependencies\emscripten\conanbuild.bat && emrun docs\SAD_CPP.html"
+If using a browser, run ```python init.py emscripten```. You will first need to edit the path to conan and the name of the gnumake package in init.py.
 
 ## Future Plans
 
@@ -43,7 +83,7 @@ Implement and train a neural network for evaluation of leaf nodes (instead of us
 
 Allow users to query Gemini for the best possible move in a situation. Gemini will be able to access information about the state as well as the current search information from the RL Agent.
 
-Potentially, I could try to modify the agent to work with the full version of SnD.
+Potentially, I could try to modify the agent to work with the full version of SnD. This would also require building a fast environment for the full game.
 
 ## LLM Usage:
 
