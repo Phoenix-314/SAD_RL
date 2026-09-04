@@ -10,14 +10,13 @@
 #include "rlSolvers/randomActor.h"
 
 int TrialActor::generateAction(State& state) {
-    // std::cout<< "TrialActor: Generating action for state with level: " << state.level << std::endl;
     lastTrials.clear();
     std::vector<int> validActionsList = validActions::validActionsFast(state);
 
     int bestAction = -1;
-    int bestScore = -1;
+    double bestScore = -1;
     for (int i=0; i < validActionsList.size(); i++) {
-        int tmp = _evaluateAction(state, validActionsList[i], simNum);
+        double tmp = _evaluateAction(state, validActionsList[i], simNum);
         lastTrials.push_back(std::make_pair(validActionsList[i], tmp));
         if (tmp > bestScore) {
             bestScore = tmp;
@@ -25,20 +24,28 @@ int TrialActor::generateAction(State& state) {
         }
     }
     
-    
     return bestAction;
 }
 
-int TrialActor::_evaluateAction(State& state, int action, int numSims) {
-    int netSuccesses = 0;
+double TrialActor::_evaluateAction(State& state, int action, int numSims) {
+    double netSuccesses = 0;
     for (int i = 0; i < numSims; i++) {
         State simState = state;
         transition(simState, action); // Apply given action
 
         // Complete remaining rollout with random actions
+        double deathPenalty = 0;
         int antiInfiniteChecker = 0;
         while (isFightEnd(simState) == 0) {
             int act = rolloutPolicy->generateAction(simState);
+            
+            deathPenalty = 0;
+            for (int i=0; i < simState.players.size(); i++) {
+                if (simState.players[i]->dead) {
+                    deathPenalty += 0.01;
+                }
+            }
+            
             transition(simState, act);
             
             antiInfiniteChecker += 1;
@@ -52,7 +59,7 @@ int TrialActor::_evaluateAction(State& state, int action, int numSims) {
         }
         
         if (isFightEnd(simState) == 1) {
-            netSuccesses += 1;
+            netSuccesses += 1 - deathPenalty;
         }
     }
     

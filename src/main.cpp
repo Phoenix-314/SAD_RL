@@ -86,7 +86,7 @@ void saveFile(const State& state, int i) {
     }
 }
 
-State runInputCycle(Render& renderer, const State& oldState, const State& ancientState, ActionGenerator* actionGenerator) {
+std::optional<State> runInputCycle(Render& renderer, ActionGenerator* actionGenerator, State state, std::optional<std::string> userInput) {
     /*
     Updates pygame display and reads from pygame console input. (If actionGenerator is provided, empty console input will be filled with actions from the generator)
     Returns the new state after executing the action, or returns the old state if the input was invalid.
@@ -98,7 +98,6 @@ State runInputCycle(Render& renderer, const State& oldState, const State& ancien
     s to view state
     saX to view ally X (1-5)
     seX to view enemy X (1-10)
-    b to go back to the previous state (or forward, if b was just used)
     DAxy to use ally x's die on target y (x = 1-5, y = 1-10, or - for untargeted)
     DExy, SAxy, SExy for similar actions. SA0/SE0 is burst
     RXXXXX to reroll allies with the given dice values (1 = reroll, 0 = keep)
@@ -106,11 +105,13 @@ State runInputCycle(Render& renderer, const State& oldState, const State& ancien
     C to continue (if the game is in a non-interactive state)
     x and y for debugging
     */
-    State state = oldState;
-    std::optional<std::string> line = renderer.readConsoleLine(">>> ", &state);
-    if (!line.has_value() || line.value().empty()) {
+    std::optional<std::string> line = userInput;
+    if (!line.has_value()) {
+        return std::nullopt;
+    }
+    std::string lineValue = line.value();
+    if (lineValue.empty()) {
         try {
-
             int act = actionGenerator->generateAction(state);
             transition(state, act);
             renderer.addValueToConsoleHistory(util::getActionStr(act));
@@ -121,9 +122,8 @@ State runInputCycle(Render& renderer, const State& oldState, const State& ancien
             std::cout << e.what() << std::endl;
             std::cout << "Some error has occurred. Returning oldstate" << std::endl;
             util::printState(state, true);
-            return oldState;
+            return std::nullopt;
         }
-        return oldState;
     }
     try {
         std::string x = line.value();
@@ -132,7 +132,7 @@ State runInputCycle(Render& renderer, const State& oldState, const State& ancien
         } else if (x[0] == 'r') {
             if (x.length() != 6) {
                 std::cout << "INVALID INPUT. Try again: " << x << std::endl;
-                return oldState;
+                return std::nullopt;
             }
             std::array<int, 5> rerollValues;
             for (int i=0;i<5;i++) { rerollValues[i] = int(x[i+1] - '0'); }
@@ -140,17 +140,17 @@ State runInputCycle(Render& renderer, const State& oldState, const State& ancien
             factions::handleSDS(state);
             return state;
         } else if (x[0] == 'v') {
-            for (const auto& v : validActions::validActions(state)) {
+            for (const auto& v : validActions::validActionsFast(state)) {
                 std::cout << v << ", ";
             }
             std::cout << std::endl;
-            return oldState;
+            return std::nullopt;
         } else if (x[0] == 'a') {
-            for (const auto& v : validActions::validActions(state)) {
+            for (const auto& v : validActions::validActionsFast(state)) {
                 std::cout << util::getActionStr(v) << ", ";
             }
             std::cout << std::endl;
-            return oldState;
+            return std::nullopt;
         } else if (x[0] == 's') {
             if (x.substr(0, 2) == "sa") {
                 util::printEnt(state, *state.players[int(x[2] - '0') - 1]);
@@ -159,16 +159,14 @@ State runInputCycle(Render& renderer, const State& oldState, const State& ancien
             } else {
                 util::printState(state);
             }
-            return oldState;
-        } else if (x[0] == 'b') {
-            return ancientState;
+            return std::nullopt;
         } else if (x[0] == 'x') {
             // exec(x[1:]) // Local testing program - arbitrary code execution is harder in cpp
             
             auto mcts = dynamic_cast<MCTS*>(actionGenerator);
             if (mcts == nullptr) {
                 std::cout << "Action generator is not MCTS. Cannot execute x command." << std::endl;
-                return oldState;
+                return std::nullopt;
             }
             if (x[1] == 'x') {
                 std::cout << mcts->root->children[int(x[2] - '0') * 100 + int(x[3] - '0') * 10 + int(x[4] - '0')]->toString(1, int(x[6] - '0')) << std::endl;
@@ -185,7 +183,7 @@ State runInputCycle(Render& renderer, const State& oldState, const State& ancien
             auto mcts = dynamic_cast<MCTS*>(actionGenerator);
             if (mcts == nullptr) {
                 std::cout << "Action generator is not MCTS. Cannot execute y command." << std::endl;
-                return oldState;
+                return std::nullopt;
             }
 
             for (const auto& [act1, randNodeUPtr1] : mcts->root->children) {
@@ -232,7 +230,7 @@ State runInputCycle(Render& renderer, const State& oldState, const State& ancien
                 }
                 std::cout << "Turn " << i + 1 << ": " << numStates << " states, " << (numStates > 0 ? static_cast<double>(totalVisits) / numStates : 0) << " visits" << std::endl;
             }
-            return oldState;
+            return std::nullopt;
         } else {
             int action = -1;
             std::pair<int, int> data = {0, 0};
@@ -263,7 +261,7 @@ State runInputCycle(Render& renderer, const State& oldState, const State& ancien
                 } else {
                     if (x.length() != 6 && x.length() != 2) {
                         std::cout << "INVALID INPUT. Try again: " << x << std::endl;
-                        return oldState;
+                        return std::nullopt;
                     }
                     if (x.length() == 2) {
                         data = std::make_pair<int, int>(31, 0);
@@ -285,7 +283,7 @@ State runInputCycle(Render& renderer, const State& oldState, const State& ancien
                 data = std::make_pair<int, int>(0, 0);
             } else {
                 std::cout << "INVALID INPUT. Try again: " << x << std::endl;
-                return oldState;
+                return std::nullopt;
             }
 
             if (actionsReversedIDs.find(std::make_pair(action, data)) != actionsReversedIDs.end() && validActions::isValidAction(state, actionsReversedIDs.at(std::make_pair(action, data)))) {
@@ -295,16 +293,17 @@ State runInputCycle(Render& renderer, const State& oldState, const State& ancien
                 return state;
             } else {
                 std::cout << "Illegal Action: " << x << std::endl;
-                return oldState;
+                return std::nullopt;
             }
         }
     } catch (const std::exception& e) {
         std::cout << "Error: " << e.what() << std::endl;
         std::cout << "Some error has occurred. Returning oldstate" << std::endl;
         util::printState(state, true);
-        return oldState;
+        return std::nullopt;
     }
-    return state;
+
+    return std::nullopt; // Should not be used
 }
 
 void makeSerializationFolder() {
@@ -341,122 +340,19 @@ void init(ActionGenerator* actionGen, State initialState) {
     actionGenerator = actionGen;
 }
 void runGameLoop() {
+    if (state.stateType == StateType::WON || state.stateType == StateType::LOST) {
+        return;
+    }
+    
     std::optional<std::string> line = renderer.readConsoleLineNonBlocking(">>> ", &state, clearConsole);
     clearConsole = false;
-    
     if (!line.has_value()) {
         return; // No input yet, continue the loop
     } else {
         clearConsole = true; // Console gets reset since user input has been detected
     }
 
-    if (line.value().empty()) {
-        try {
-            int act = actionGenerator->generateAction(state);
-            transition(state, act);
-            renderer.addValueToConsoleHistory(util::getActionStr(act));
-            renderer.render(state);
-        }
-        catch (const std::exception& e) {
-            std::cout << e.what() << std::endl;
-            std::cout << "Some error has occurred. Returning oldstate" << std::endl;
-            util::printState(state, true);
-            return;
-        }
-    }
-    
-    if (!line.value().empty()) {
-    try {
-        std::string x = line.value();
-        if (x[0] == 'q') {
-            return; // Empty state indicates to quit
-        } else if (x[0] == 'r') {
-            if (x.length() != 6) {
-                std::cout << "INVALID INPUT. Try again: " << x << std::endl;
-                return;
-            }
-            std::array<int, 5> rerollValues;
-            for (int i=0;i<5;i++) { rerollValues[i] = int(x[i+1] - '0'); }
-            rollAllies(state, rerollValues);
-            factions::handleSDS(state);
-        } else if (x[0] == 'a') {
-            for (const auto& v : validActions::validActions(state)) {
-                std::cout << util::getActionStr(v) << ", ";
-            }
-            std::cout << std::endl;
-        } else if (x[0] == 's') {
-            if (x.substr(0, 2) == "sa") {
-                util::printEnt(state, *state.players[int(x[2] - '0') - 1]);
-            } else if (x.substr(0, 2) == "se") {
-                util::printEnt(state, *state.enemies[int(x[2] - '0') - 1]);
-            } else {
-                util::printState(state);
-            }
-        } else {
-            int action = -1;
-            std::pair<int, int> data = {0, 0};
-            if (x.substr(0, 2) == "DA") {
-                action = DICE_ALLY_ACTION;
-                if (x[3] == '-') {
-                    data = std::make_pair<int, int>(int(x[2] - '0') - 1, -1);
-                } else {
-                    data = std::make_pair<int, int>(int(x[2] - '0') - 1, int(x[3] - '0') - 1);
-                }
-            } else if (x.substr(0, 2) == "DE") {
-                action = DICE_ENEMY_ACTION;
-                data = std::make_pair<int, int>(int(x[2] - '0') - 1, int(x[3] - '0') - 1);
-            } else if (x.substr(0, 2) == "SA") {
-                action = SPELL_ALLY_ACTION;
-                if (x[3] == '-') {
-                    data = std::make_pair<int,int>(int(x[2]), -1);
-                } else {
-                    data = std::make_pair<int, int>(int(x[2] - '0'), int(x[3] - '0') - 1);
-                }
-            } else if (x.substr(0,2) == "SE") {
-                action = SPELL_ENEMY_ACTION;
-                data = std::make_pair<int, int>(int(x[2] - '0'), int(x[3] - '0') - 1);
-            } else if (x.substr(0,1) == "R") {
-                action = REROLL_ACTION;
-                if (x.length() == 1) {
-                    data = std::make_pair<int, int>(0, 0);
-                } else {
-                    if (x.length() == 2) {
-                        data = std::make_pair<int, int>(31, 0);
-                    } else if (x.length() == 6) {
-                        std::array<bool, 5> boolarray;
-                        for (int i=0;i<5;i++) { boolarray[i] = (x[i+1] == '1'); }
-                        data = std::make_pair<int, int>(util::ba2int<5>(boolarray), 0);
-                    }
-                }
-            } else if (x.substr(0,1) == "E") {
-                if (state.rerolls == 2) { // Auto finishes turn for convenience, if one tries to end turn at the start of a turn
-                    transition(state, actionsReversedIDs.at(std::make_pair(REROLL_ACTION, std::make_pair<int,int>(0, 0))));
-                    transition(state, actionsReversedIDs.at(std::make_pair(REROLL_ACTION, std::make_pair<int,int>(0, 0))));
-                }
-                action = END_TURN_ACTION;
-                data = std::make_pair<int, int>(0, 0);
-            } else if (x.substr(0,1) == "C") {
-                action = CONTINUE_ACTION;
-                data = std::make_pair<int, int>(0, 0);
-            } else {
-                std::cout << "INVALID INPUT. Try again: " << x << std::endl;
-            }
-
-            if (actionsReversedIDs.find(std::make_pair(action, data)) != actionsReversedIDs.end() && validActions::isValidAction(state, actionsReversedIDs.at(std::make_pair(action, data)))) {
-                std::cout << "Executing: " << util::getActionStr(actionsReversedIDs.at(std::make_pair(action, data))) << std::endl;
-                transition(state, actionsReversedIDs.at(std::make_pair(action, data)));
-                renderer.render(state);
-            } else {
-                std::cout << "Illegal Action: " << x << std::endl;
-            }
-        }
-    } catch (const std::exception& e) {
-        std::cout << "Error: " << e.what() << std::endl;
-        std::cout << "Some error has occurred. Returning oldstate" << std::endl;
-        util::printState(state, true);
-        return;
-    }
-    }
+    state = runInputCycle(renderer, actionGenerator, state, line).value_or(state);
 
     if (state.stateType == StateType::WON || state.stateType == StateType::LOST) {
         std::cout << "Game Over. Result: " << stateTypesReversedIDs.at(state.stateType) << ", Level: " << state.level << std::endl;
@@ -499,14 +395,11 @@ int playGame(ActionGenerator* actionGenerator, State* statePtr=nullptr) {
     }
     State state = x.first;
     int i = x.second;
-    State lastState = State({}, {});
-    State ancient = State({}, {});
     while (true) {
-        ancient = lastState;
-        lastState = state;
-        state = runInputCycle(renderer, state, ancient, actionGenerator);
+        std::optional<std::string> userInput = renderer.readConsoleLine(">>> ", &state);
+        state = runInputCycle(renderer, actionGenerator, state, userInput).value_or(state);
         if (state.players[0]->positionID == -1 && state.players[1]->positionID == -1 && state.players[2]->positionID == -1 && state.players[3]->positionID == -1 && state.players[4]->positionID == -1 && state.enemies.empty()) { // Empty state indicates to quit
-            return -1;
+            return -1; // If user quits, break loop
         }
 
         saveFile(state, i);
@@ -616,24 +509,6 @@ int main(int argc, char *argv[]) {
 
     // State state = initial();
     State state = genState({RANGER, CAPTAIN, PILGRIM, FATE, CHRONOS}, {QUARTZ, BASALT, QUARTZ}, {std::array<int, 5>{1, 3, 4, 0, 2}}, {std::vector<int>{3, 1, 2}}); // a hard fight
-    // State state = genState({LUDUS, LEADER, VALKYRIE, MEDIC, ARTIFICER}, {WARCHIEF}, {std::array<int, 5>{0, 0, 0, 0, 0}});
-    // state.players[1]->dead = true;
-    // state.players[2]->dead = true;
-    // state.players[3]->dead = true;
-    // state.players[4]->dead = true;
-
-    // state.players[0]->hp = 1;
-
-    // mcts.generateAction(state);
-    
-    // std::cout << std::filesystem::exists(serializationFolderName + "/state_-101.txt") << std::endl;
-    // State state = loadStateFromFile(serializationFolderName + "/state_-101.txt");
-    // util::printState(state, true);
-    // trialActor.generateAction(state);
-    // playGame(randomActor, &state);
-    // return 0;
-    
-    // return 0;
 
     int numGames = 1;
     std::cout << "Playing " << numGames << " games..." << std::endl;
@@ -641,11 +516,7 @@ int main(int argc, char *argv[]) {
     #ifdef __EMSCRIPTEN__
     playGameBrowser(&triristicActor, nullptr);
     #else
-	// State state = initial();
-	//int v = mcts.generateAction(state);
-    //std::cout << v << std::endl;
-    // playGame(&mcts, &state);
-    // State init = initial();
+    playGame(&mcts, &state);
     // playGame(&heuristicActor, &state);
     // playManyGamesRandomly(mcts, numGames, 1);
 

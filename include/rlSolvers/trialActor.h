@@ -20,7 +20,7 @@ public:
     std::string toString(int detail=0) override;
 private:
     ActionGenerator* rolloutPolicy;
-    std::vector<std::pair<int, int>> lastTrials;
+    std::vector<std::pair<int, double>> lastTrials;
     int simNum;
-    int _evaluateAction(State& state, int action, int numSims);
+    double _evaluateAction(State& state, int action, int numSims);
 };

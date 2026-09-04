@@ -15,7 +15,7 @@ Browser access: https://phoenix-314.github.io/SAD_RL/
 
 Instructions:
 
-0) Play and understand Slice and Dice by Tann. The display is not intended to be teach players how to play SnD. Further, it requires some knowledge of SnD to understand the display. The game also requires a keyboard, and it may require resizing the browser.
+0) Play and understand Slice and Dice by Tann (https://tann.itch.io/slice-dice). The display is not intended to be teach players how to play SnD. Further, it requires some knowledge of SnD to understand the display. The game also requires a keyboard, and it may require resizing the browser (use 3 dots in the top right if needed).
 
 1) To play the game, enter commands into the terminal. The terminal is always selected.
 
@@ -36,14 +36,15 @@ Actions (case sensitive):
 - (Empty input): Takes an action based on the current policy. The chosen action is printed to the console.
 - DAXY: DA=Dice targeting Ally, uses hero X's dice for hero Y
 - DEXY: DE=Dice targeting Enemy, uses hero X's dice against enemy Y
+- DAX-1: Uses hero X's dice. Use when the dice is untargeted, such as mana, dodge, or damage-all. 
 - SAXY: SA=Spell targeting Ally, uses spell X for hero Y. Spell 0 is burst, spell X is hero X's spell.
 - SEAF: SE=Spell targeting Enemy, uses spell A against enemy F.
+- SAX-1: Uses spell X if spell X is untargeted.
 - RABCDE: Rerolls hero 1's dice if A=1, keeps hero 1's dice if A=0. Respectively, B-E for heros 2-5.
 - E: Ends turn. Cannot be used during the rerolling phase.
 - C: Continue action. Must be used after rerolling phase, after ending turn, and after winning a fight.
 - R: Rerolls no heros (wastes a reroll to end rerolling phase)
 - R?: Rerolls all heros, regardless of the value of ?
-
 
 Debug Actions:
 
@@ -52,6 +53,20 @@ Debug Actions:
 - s: prints the current state
 - seY: prints enemy number Y
 - saY: prints hero number Y
+
+Example Series of actions:
+- R11011: Roll every hero but the gray (3rd) hero
+- R00001: Roll the blue (5th) hero only
+- C: Exit rolling phase, start using dice and spells
+- DE12: Use orange (1st) hero to attack the second enemy
+- DA35: Use the gray hero to shield the blue hero
+- DA4-1: Use the red hero's untargeted side (probably mana)
+- a: print a list of available actions to see what can be done
+    - Prints the internal representation, where heros/enemies are 0-indexed instead of 1-indexed.
+- SE01: burst the first enemy
+- E: end turn
+- C: exit the end turn phase, enter the rolling phase of the next turn
+- ...
 
 <br>
 
