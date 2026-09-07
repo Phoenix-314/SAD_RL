@@ -2,7 +2,7 @@
 
 ## Quickstart
 
-Access https://phoenix-314.github.io/SAD_RL/, and repeatedly press enter for the current RL Policy to make decisions. You may need to adjust your browser size using the three dots in the corner.
+Access https://phoenix-314.github.io/SAD_RL/, and repeatedly press enter to watch the DPW MCTS policy make decisions in this Slice and Dice environment. You may need to adjust your page size.
 
 ## About
 This project contains two significant parts:
