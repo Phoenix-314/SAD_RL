@@ -9,6 +9,8 @@
 #include <stdexcept>
 #include <string_view>
 #include <iostream>
+#include <string>
+#include <format>
 
 #include "env/reversedIDs.h"
 
@@ -401,7 +403,55 @@ void Render::submitConsoleLine(const std::string& line)
 
 void Render::addValueToConsoleHistory(std::string val)
 {
-    consoleHistory_.push_back("Value: " + val);
+    std::string action;
+    
+    if (val.substr(0, 1) == "R") {
+        std::vector<int> arr;
+        for (std::size_t i = 0; i < 5; ++i) {
+            if (val.substr(1+i,1) == "1") {
+                arr.push_back(static_cast<int>(i+1));
+            }
+        }
+        action = "Rerolling heros ";
+        for (const auto& idx : arr) {
+            action += std::to_string(idx) + ", ";
+        }
+        action.pop_back(); // Remove the last comma
+        action.pop_back(); // Remove the last space
+        if (val == "R00000") {
+            action = "Wasting a reroll, not rerolling any heros";
+        }
+    } else if (val.substr(0,1) == "E") {
+        action = "Ending turn";
+    } else if (val.substr(0,1) == "C") {
+        action = "Continuing to next phase";
+    } else if (val.substr(0,2) == "DA") {
+        if (val.substr(3,1) == "-") {
+            action = std::format("Using hero {}'s untargeted dice", std::stoi(val.substr(2,1)) + 1);
+        } else {
+            action = std::format("Using hero {}'s dice on hero {}", std::stoi(val.substr(2,1)) + 1, std::stoi(val.substr(3,1)) + 1);
+        }
+    } else if (val.substr(0,2) == "DE") {
+        action = std::format("Using hero {}'s dice on enemy {}", std::stoi(val.substr(2,1)) + 1, std::stoi(val.substr(3,1)) + 1);
+    } else if (val.substr(0,2) == "SA") {
+        if (val.substr(2,1) == "0") {
+            action = std::format("Using burst on hero {}", std::stoi(val.substr(2,1)) + 1);
+        } else {
+            if (val.substr(3,1) == "-") {
+                action = std::format("Using hero {}'s untargeted spell", std::stoi(val.substr(2,1)));
+            } else {
+                action = std::format("Using hero {}'s spell on hero {}", std::stoi(val.substr(2,1)), std::stoi(val.substr(3,1)) + 1);
+            }
+        }
+    } else if (val.substr(0,2) == "SE") {
+        if (val.substr(2,1) == "0") {
+            action = std::format("Using burst on enemy {}", std::stoi(val.substr(3,1)) + 1);
+        } else {
+            action = std::format("Using hero {}'s spell on enemy {}", std::stoi(val.substr(2,1)), std::stoi(val.substr(3,1)) + 1);
+        }
+    }
+
+    consoleHistory_.push_back(action);
     if (consoleHistory_.size() > kConsoleHistoryLimit) {
         consoleHistory_ = std::vector<std::string>(consoleHistory_.end() - kConsoleHistoryLimit, consoleHistory_.end());
     }

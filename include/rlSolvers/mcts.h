@@ -33,16 +33,13 @@ public:
     int progressBar;
 
     MCTS(ActionGenerator* rolloutPolicy, int nSims, double K, double alpha, double beta, int progressBar=0);
-    // std::unique_ptr<DecisionNode>& updateRandomNode(State decisionNodeState,RandomNode& randomNode);
     std::unique_ptr<DecisionNode>& selectOutcomeAndUpdateDecisionNode(State state, RandomNode& randomNode);
     void grow_tree();
     double evaluate(State state);
-    // State selectOutcome(State state, RandomNode& randomNode);
     double UCTval(const RandomNode& randomNode);
     int select(DecisionNode& decisionNode);
     int bestAction();
     void learn(int Nsim, int progressBar=0);
-    // void forward(int action, State newState);
     std::string toString(int maxDepth=5);
 
     int generateAction(State& state);

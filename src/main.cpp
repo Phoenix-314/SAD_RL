@@ -365,8 +365,9 @@ int playGameBrowser(ActionGenerator* actionGenerator, State* statePtr) {
     If a state has been saved, that state will be loaded when restarting. Else, starts a new state
     If actionGenerator is provided, empty console input will be filled with actions from the generator, allowing for automated play.
     */
+    srand(time(0)); // For browser, random seeding is desirable
     std::cout << "Starting browser game using:" << std::endl;
-    std::cout << "\tAction Generator: " << actionGenerator->toString() << std::endl;
+    std::cout << "\tAction Generator: " << actionGenerator->toString(-1) << std::endl;
     State s = initial();
     if (statePtr == nullptr) {
         statePtr = &s;
@@ -505,18 +506,17 @@ int main(int argc, char *argv[]) {
     TrialActor trialActor(&randomActor, 100);
     TrialActor triristicActor(&heuristicActor, 200);
     rand();
-    MCTS mcts(&heuristicActor, 32*200, 1.1, 0.5, 0.5, 0); // nSims, K, alpha, beta, progressBar // 200000
-    // mcts(5000, 1.414, -0.0, 0.5, 0); // with BASE MCTS select, not SPW
-
+    MCTS mcts(&heuristicActor, 64*200, 1.1, 0.5, 0.5, 0); // nSims, K, alpha, beta, progressBar // 200000
+    
     // State state = initial();
     State state = genState({RANGER, CAPTAIN, PILGRIM, FATE, CHRONOS}, {QUARTZ, BASALT, QUARTZ}, {std::array<int, 5>{1, 3, 4, 0, 2}}, {std::vector<int>{3, 1, 2}}); // a hard fight
 
-    int numGames = 8;
-    std::cout << "Playing " << numGames << " games..." << std::endl;
     
     #ifdef __EMSCRIPTEN__
     playGameBrowser(&mcts, nullptr);
     #else
+    int numGames = 8;
+    std::cout << "Playing " << numGames << " games..." << std::endl;
     // playGame(&mcts, &state);
     // playGame(&heuristicActor, &state);
     // playManyGamesRandomly(&mcts, numGames, 1);

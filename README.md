@@ -1,5 +1,9 @@
 # Slice and Dice & Reinforcement Learning (SAD RL)
 
+## Quickstart
+
+Access https://phoenix-314.github.io/SAD_RL/, and repeatedly press enter for the current RL Policy to make decisions. You may need to adjust your browser size using the three dots in the corner.
+
 ## About
 This project contains two significant parts:
 
@@ -67,12 +71,12 @@ Example Series of actions:
 - E: end turn
 - C: exit the end turn phase, enter the rolling phase of the next turn
 - ...
+- Or you can just press enter repeatedly, and see what the policy thinks is best
 
 <br>
 
 Other notes:
- Agent does not get his shifter sides. Very sad.
-
+ Agent does not get his shifter sides, which is very sad.
 Keywords are applied, but are not displayed visually.
 
 ## Installation
@@ -90,6 +94,22 @@ The conanfile and premake5.lua files are available in the repository.
 
 If using a browser, run ```python init.py emscripten```. You will first need to edit the path to conan and the name of the gnumake package in init.py.
 
+## MCTS Agent
+
+The current agent is a modified version of the Double Progressive Widening (DPW) Monte Carlo tree search (MCTS) algorithm. 
+
+I chose MCTS because of decisions in SAD depend heavily on breakpoints. For example, a hero or enemy living on 1 hp is significantly different than them having 0 hp, and being able to reach these breakpoints is a major part of SAD strategy. This likely disrupts policy and value based methods since the sharp edges in the value function (corresponding to breakpoints) are difficult to learn for most function approximation. Meanwhile, MCTS uses search and builds a tree around the current state using actual rollouts. This reveals how breakpoints should affect decisions much more clearly.
+
+However, MCTS suffers from the large branching factor and stochasticity in SAD. For this reason, I use DPW. SnD often has 32 distinct actions in a single state, and can branch to as many as 4.7e11 distinct states after an action. The first progressive widening (SPW) addresses the moderate size of the action space by limiting the MCTS tree growth to selecting a few actions until a node/state has been visited a sufficient number of times. The second progressive widening (DPW) address the stochasticity and large branching factor by limiting what states can follow after taking an action. The majority of the time, some previously visited state is returned instead of a random transition. As the number of visits to a particular state-action node increases, however, a new random transition will be sampled occasionally.
+
+I implemented MCTS DPW based on martinobdl's implementation. Their implementation appears to have contained bugs, which were fixed.
+
+To improve performance for SAD, I implemented a rollout policy based on heuristics. The full set of heuristics is explained in the code in heuristicActor.h.
+
+I also added a transposition table setup exploiting the fact that the number of possible states converges at the end of a turn. While there are many sides one can roll and different paths to reach the end of a turn, there are significantly fewer possible amounts of damage one can deal and take upon ending a turn. As a result, storing the average return of the rollout policy after reaching an END_TURN state reduces variance and corresponding increases the efficiency of the search. 
+
+I intend to explore the possibility of manipulating the results of how DPW returns a state to help the algorithm distinguish between two very good or very bad actions. In theory, if a particular pair of actions both have >99% win rate, then DPW could only return the worst possible random outcomes to help distinguish which of the actions is slightly better than the other one. Doing this carefully could help avoid the need to try both actions hundreds of thousands of times to distinguish them.
+
 ## Future Plans
 
 Implement a full transposition table setup to improve training efficiency.
@@ -106,7 +126,7 @@ The following list consitutes a complete list of LLM usage when constructing thi
 - Copilot inline suggestions
 - Copilot wrote the renderer and user input code (with some bug fixes by me). These functions are not used when training the RL Agent
 - Copilot debugged library/dependency issues
-- Users may be able to query Gemini for explanations of optimal moves
+- Users may eventually be able to query Gemini for explanations of optimal moves
 
 ## References
 - Tann. (2021). Slice And Dice (v. 3.2.13) [Desktop]. https://tann.fun/games/dice/
@@ -116,5 +136,6 @@ The following list consitutes a complete list of LLM usage when constructing thi
 “Continuous upper confidence trees,” in International Conference on
 Learning and Intelligent Optimization. Springer, 2011, pp. 433–445
 - C. B. Browne et al., "A Survey of Monte Carlo Tree Search Methods," in IEEE Transactions on Computational Intelligence and AI in Games, vol. 4, no. 1, pp. 1-43, March 2012, doi: 10.1109/TCIAIG.2012.2186810.
-
+- https://github.com/martinobdl/MCTS/blob/master/mcts/DPW.py
+   - Initial implementation, which appears to contain bugs  
 

@@ -16,16 +16,6 @@ MCTS::MCTS(ActionGenerator* rolloutPolicy, int nSims, double K, double alpha, do
     }
 }
 
-// std::unique_ptr<DecisionNode>& MCTS::updateRandomNode(State decisionNodeState, RandomNode& randomNode) {
-//     // returns randomNode child associated with the state, and creates child if it does not exist.
-//     if (randomNode.children.count(decisionNodeState) == 0) {
-//         auto decisionNode = std::make_unique<DecisionNode>(decisionNodeState, &randomNode, false, isFightEnd(decisionNodeState) != 0);
-//         return randomNode.addChildren(std::move(decisionNode));
-//     } else {
-//         return randomNode.children[decisionNodeState];
-//     }
-// }
-
 std::unique_ptr<DecisionNode>& MCTS::selectOutcomeAndUpdateDecisionNode(State state, RandomNode& randomNode) {
     // DPW SelectOutcome algorithm
     if (std::pow(randomNode.visits, beta) >= randomNode.children.size()) {
@@ -95,12 +85,20 @@ double MCTS::evaluate(State state) {
 
     bool hasFoundTranspositionTableEntry = false;
     State transpositionTableState;
+    double deathPenalty = 0;
     while (isFightEnd(state) == 0) {
         if (state.stateType == StateType::EMPTY_TURN && !hasFoundTranspositionTableEntry) {
             hasFoundTranspositionTableEntry = true;
             transpositionTableState = state;
         }
         itr += 1;
+        
+        deathPenalty = 0;
+        for (int i=0; i < state.players.size(); i++) {
+            if (state.players[i]->dead) {
+                deathPenalty += 0.01;
+            }
+        }
 
         int a = rolloutPolicy->generateAction(state);
         transition(state, a);
@@ -111,7 +109,7 @@ double MCTS::evaluate(State state) {
         }
     }
 
-    int reward = isFightEnd(state) == 1 ? 1 : 0;
+    int reward = isFightEnd(state) == 1 ? 1 - deathPenalty : 0;
     if (hasFoundTranspositionTableEntry) {
         int turnIdx = transpositionTableState.turn - 2; // turnIdx is 0-indexed, not 1-indexed, so -1. Also, EMPTY_TURN has already incremented turn by 1, so -1 again.
         std::size_t hashValue = boost::hash<State>()(transpositionTableState);
@@ -124,25 +122,8 @@ double MCTS::evaluate(State state) {
         return tmp.first / tmp.second; // return more accurate q value
     }
 
-    return isFightEnd(state) == 1; // if no entry, just use the current rollout. This happens near the end of the game, so variance should be small anyway.
+    return reward; // if no entry, just use the current rollout. This happens near the end of the game, so variance should be small anyway.
 }
-
-// State MCTS::selectOutcome(State state, RandomNode& randomNode) {
-//     // DPW SelectOutcome algorithm
-//     if (std::pow(randomNode.visits, beta) >= randomNode.children.size()) {
-//         transition(state, randomNode.action);
-//         return state;
-//     } else {
-//         int randIndex = std::rand() % randomNode.children.size(); // Randomly select pre-existing state
-//         auto x = randomNode.children.begin();
-//         std::advance(x, randIndex);
-//         return x->first;
-//     }
-
-//     // Base MCTS selectOutcome algorithm
-//     // transition(state, randomNode.action);
-//     // return state;
-// }
 
 double MCTS::UCTval(const RandomNode& randomNode) {
     if (randomNode.visits == 0) {
@@ -210,31 +191,6 @@ void MCTS::learn(int Nsim, int progressBar) {
     }
 }
 
-// def forward(self, action, new_state):
-//     """
-//     If the env is determonostic we can salvage most of the tree structure.
-//     Advances the tree in the action taken if found in the tree nodes.
-
-//     :param action: (tuple)
-//     :param new_state: (tuple)
-//     """
-//     if self._hash_action(action) in self.root.children.keys():
-//         rnd_node = self.root.children[self._hash_action(action)]
-//         if len(rnd_node.children) > 1:
-//             self.root = DecisionNode(state=new_state, is_root=True)
-//         else:
-//             next_decision_node = np.random.choice(list(rnd_node.children.values()))
-//             if np.linalg.norm(next_decision_node.state-new_state) > 1e-3:
-//                 raise RuntimeWarning("The env is probably stochastic")
-//             else:
-//                 next_decision_node.father = None
-//                 self.root.children.pop(self._hash_action(action))
-//                 self.root = next_decision_node
-//                 self.root.is_root = True
-//     else:
-//         raise RuntimeWarning("Action taken: {} is not in the children of the root node.".format(action))
-
-
 int MCTS::generateAction(State& state) {
     // Generates an action by iterating the MCTS algorithm nSims times, and then returning the optimal action from the search
     initialState = state;
@@ -246,6 +202,9 @@ int MCTS::generateAction(State& state) {
 std::string MCTS::toString(int maxDepth) {
     std::string ret;
     ret += "MCTS: nSims=" + std::to_string(nSims) + ", K=" + std::to_string(K) + ", alpha=" + std::to_string(alpha) + ", beta=" + std::to_string(beta) + "\n";
+    if (maxDepth < 0) {
+        return ret;
+    }
     ret += "Tree:\n";
     ret += root->toString(0, maxDepth);
     return ret;
