@@ -189,12 +189,12 @@ std::optional<State> runInputCycle(Render& renderer, ActionGenerator* actionGene
             for (const auto& [act1, randNodeUPtr1] : mcts->root->children) {
                 int countUniqueStatesBefore = (int) stateMap.size();
                 int numNonUniqueStatesBefore = countTotal;
-                for (const auto& [state1, decNodeUPtr1] : randNodeUPtr1->children) {
-                    stateMap[state1]++;
+                for (const auto& decNodeUPtr1 : randNodeUPtr1->children) {
+                    stateMap[decNodeUPtr1->state]++;
                     countTotal++;
                     countVisits += decNodeUPtr1->visits;
                     for (const auto& [act2, randNodeUPtr2] : decNodeUPtr1->children) {
-                        for (const auto& [state2, decNodeUPtr2] : randNodeUPtr2->children) {
+                        for (const auto& decNodeUPtr2 : randNodeUPtr2->children) {
                         }
                     }
                 }
@@ -213,7 +213,7 @@ std::optional<State> runInputCycle(Render& renderer, ActionGenerator* actionGene
                     numLeaves++;
                 } else {
                     for (const auto& [act, randNodeUPtr] : node->children) {
-                        for (const auto& [state, decNodeUPtr] : randNodeUPtr->children) {
+                        for (const auto& decNodeUPtr : randNodeUPtr->children) {
                             traverseTree(decNodeUPtr.get(), depth + 1);
                         }
                     }
@@ -503,27 +503,28 @@ int main(int argc, char *argv[]) {
     RandomActor randomActor;
     HeuristicActor heuristicActor;
     TrialActor trialActor(&randomActor, 100);
-    TrialActor triristicActor(&heuristicActor, 500);
-    MCTS mcts(&heuristicActor, 5000, 0.05, 0.4, 0.35, 2); // nSims, K, alpha, beta, progressBar // 200000
+    TrialActor triristicActor(&heuristicActor, 200);
+    rand();
+    MCTS mcts(&heuristicActor, 32*200, 1.1, 0.5, 0.5, 0); // nSims, K, alpha, beta, progressBar // 200000
     // mcts(5000, 1.414, -0.0, 0.5, 0); // with BASE MCTS select, not SPW
 
     // State state = initial();
     State state = genState({RANGER, CAPTAIN, PILGRIM, FATE, CHRONOS}, {QUARTZ, BASALT, QUARTZ}, {std::array<int, 5>{1, 3, 4, 0, 2}}, {std::vector<int>{3, 1, 2}}); // a hard fight
 
-    int numGames = 1;
+    int numGames = 8;
     std::cout << "Playing " << numGames << " games..." << std::endl;
     
     #ifdef __EMSCRIPTEN__
-    playGameBrowser(&triristicActor, nullptr);
+    playGameBrowser(&mcts, nullptr);
     #else
-    playGame(&mcts, &state);
+    // playGame(&mcts, &state);
     // playGame(&heuristicActor, &state);
-    // playManyGamesRandomly(mcts, numGames, 1);
+    // playManyGamesRandomly(&mcts, numGames, 1);
 
-    playManyGamesRandomly(&triristicActor, numGames, 1);
-    playManyGamesRandomly(&heuristicActor, numGames * 1000, 1);
+    // playManyGamesRandomly(&triristicActor, numGames, 1);
+    // playManyGamesRandomly(&heuristicActor, numGames * 1000, 1);
     // playManyGamesRandomly(trialActor, numGames, 1);
-    playManyGamesRandomly(&randomActor, numGames * 1000, 1);
+    playManyGamesRandomly(&randomActor, numGames * 10000, 1);
     #endif
 
 

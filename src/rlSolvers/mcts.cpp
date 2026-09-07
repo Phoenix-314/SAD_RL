@@ -16,14 +16,36 @@ MCTS::MCTS(ActionGenerator* rolloutPolicy, int nSims, double K, double alpha, do
     }
 }
 
-std::unique_ptr<DecisionNode>& MCTS::updateRandomNode(State decisionNodeState, RandomNode& randomNode) {
-    // returns randomNode child associated with the state, and creates child if it does not exist.
-    if (randomNode.children.count(decisionNodeState) == 0) {
-        auto decisionNode = std::make_unique<DecisionNode>(decisionNodeState, &randomNode, false, isFightEnd(decisionNodeState) != 0);
+// std::unique_ptr<DecisionNode>& MCTS::updateRandomNode(State decisionNodeState, RandomNode& randomNode) {
+//     // returns randomNode child associated with the state, and creates child if it does not exist.
+//     if (randomNode.children.count(decisionNodeState) == 0) {
+//         auto decisionNode = std::make_unique<DecisionNode>(decisionNodeState, &randomNode, false, isFightEnd(decisionNodeState) != 0);
+//         return randomNode.addChildren(std::move(decisionNode));
+//     } else {
+//         return randomNode.children[decisionNodeState];
+//     }
+// }
+
+std::unique_ptr<DecisionNode>& MCTS::selectOutcomeAndUpdateDecisionNode(State state, RandomNode& randomNode) {
+    // DPW SelectOutcome algorithm
+    if (std::pow(randomNode.visits, beta) >= randomNode.children.size()) {
+        transition(state, randomNode.action);
+        // for (auto& child : randomNode.children) {
+        //     if (child->state == state) {
+        //         return child;
+        //     }
+        // }
+        auto decisionNode = std::make_unique<DecisionNode>(state, &randomNode, false, isFightEnd(state) != 0);
         return randomNode.addChildren(std::move(decisionNode));
     } else {
-        return randomNode.children[decisionNodeState];
+        int randIndex = std::rand() % randomNode.children.size(); // Randomly select pre-existing state
+        auto& x = randomNode.children[randIndex];
+        return x;
     }
+    // Base MCTS selectOutcome algorithm
+    // transition(state, randomNode.action);
+    // return state;
+    
 }
 
 void MCTS::grow_tree() {
@@ -40,9 +62,11 @@ void MCTS::grow_tree() {
 
         RandomNode& newRandomNode = decisionNodePtr->nextRandomNode(a); // Deterministically accesses the associated RandomNode
 
-        state = selectOutcome(state, newRandomNode); // Select outcome via DPW selectOutcome algorithm
+        // state = selectOutcome(state, newRandomNode); // Select outcome via DPW selectOutcome algorithm
 
-        decisionNodePtr = updateRandomNode(state, newRandomNode).get(); // Update random node by adding a (new) DecisionNode child
+        // decisionNodePtr = updateRandomNode(state, newRandomNode).get(); // Update random node by adding a (new) DecisionNode child
+        decisionNodePtr = selectOutcomeAndUpdateDecisionNode(state, newRandomNode).get();
+        state = decisionNodePtr->state;
     }
 
     // Rollout
@@ -103,22 +127,22 @@ double MCTS::evaluate(State state) {
     return isFightEnd(state) == 1; // if no entry, just use the current rollout. This happens near the end of the game, so variance should be small anyway.
 }
 
-State MCTS::selectOutcome(State state, RandomNode& randomNode) {
-    // DPW SelectOutcome algorithm
-    if (std::pow(randomNode.visits, beta) >= randomNode.children.size()) {
-        transition(state, randomNode.action);
-        return state;
-    } else {
-        int randIndex = std::rand() % randomNode.children.size(); // Randomly select pre-existing state
-        auto x = randomNode.children.begin();
-        std::advance(x, randIndex);
-        return x->first;
-    }
+// State MCTS::selectOutcome(State state, RandomNode& randomNode) {
+//     // DPW SelectOutcome algorithm
+//     if (std::pow(randomNode.visits, beta) >= randomNode.children.size()) {
+//         transition(state, randomNode.action);
+//         return state;
+//     } else {
+//         int randIndex = std::rand() % randomNode.children.size(); // Randomly select pre-existing state
+//         auto x = randomNode.children.begin();
+//         std::advance(x, randIndex);
+//         return x->first;
+//     }
 
-    // Base MCTS selectOutcome algorithm
-    // transition(state, randomNode.action);
-    // return state;
-}
+//     // Base MCTS selectOutcome algorithm
+//     // transition(state, randomNode.action);
+//     // return state;
+// }
 
 double MCTS::UCTval(const RandomNode& randomNode) {
     if (randomNode.visits == 0) {

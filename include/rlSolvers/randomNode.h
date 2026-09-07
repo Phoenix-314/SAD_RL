@@ -20,7 +20,7 @@ class DecisionNode;
 class RandomNode {
 public:
     int action;
-    std::unordered_map<State, std::unique_ptr<DecisionNode>, boost::hash<State>> children;
+    std::vector<std::unique_ptr<DecisionNode>> children;
     double cumulativeReward;
     int visits;
     DecisionNode* father;
